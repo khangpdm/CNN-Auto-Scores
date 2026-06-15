@@ -5,7 +5,7 @@ import imutils
 import numpy as np
 
 samples_dir = "../Samples/"
-sample = "1.jpg"
+sample = "real3.jpg"
 full_path = os.path.join(samples_dir, sample)
 
 
@@ -49,34 +49,34 @@ def get_x_ver1(s):
     return s[0] * s[1]
 
 
-def crop_image(img):
-    img_cnts = img.copy()
-    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray_img, (5, 5), 0)
+def find_sheet_contour(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     img_canny = cv2.Canny(blurred, 100, 200)
 
-    # cnts sẽ trả về img, contours, hierarchy
-    cnts = cv2.findContours(img_canny.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    kernel = np.ones((5, 5), np.uint8)
+    img_canny = cv2.dilate(img_canny, kernel, iterations=2)
+
+    cnts = cv2.findContours(img_canny, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
+    cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
 
-    # HIển thị đuờng viền
-    # cv2.drawContours(img_cnts, cnts, -1, (0, 255, 0), 2)
-
-    for i, c in enumerate(cnts):
-        x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(c)
-        if w_curr * h_curr > 145000:
-            cv2.rectangle(
-                img_cnts,
-                (x_curr, y_curr),
-                (x_curr + w_curr, y_curr + h_curr),
-                (0, 255, 0),
-                3,
-            )
-    return img_cnts
+    for c in cnts:
+        # Đo độ dài(chu vi) của đuờng viền, true để đảm bảo đuờng viền khép kín
+        peri = cv2.arcLength(c, True)
+        # Hàm này giúp loại bỏ các điểm không quan trọng, chỉ giữ lại các điểm ngoặc (góc)
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        if len(approx) == 4:
+            area = cv2.contourArea(approx)
+            img_area = image.shape[0] * image.shape[1]
+            if area > 0.3 * img_area:
+                # approx sẽ trả về kiểu (4,1,2) lần luợt là số góc, mỗi điểm nằm trong 1 list, 2 là x và y
+                # (4,2) sẽ trả về x,y trong list đơn giản hơn (bỏ nhiều dấu [])
+                return approx.reshape(4, 2)
+    return None
 
 
 img = cv2.imread(full_path)
-
-img1 = crop_image(img)
+img1 = find_sheet_contour(img)
 print_img(img1)
 # print(img1)
