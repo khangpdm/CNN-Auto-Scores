@@ -49,6 +49,21 @@ def get_x_ver1(s):
     return s[0] * s[1]
 
 
+def order_point(pts):
+    rect = np.zeros((4, 2), dtype="float32")
+    # Theo hàng (axis = 1) cộng trái sang phải
+    s = pts.sum(axis=1)
+    # Trừ cột trái sang phải
+    diff = np.diff(pts, axis=1)
+    # Góc 0,0 của x và y sẽ nằm ở trên (Trong hình học máy)
+    rect[0] = pts[np.argmin(s)]  # Góc trên-trái (x+y nhỏ nhất)
+    rect[2] = pts[np.argmax(s)]  # Góc dưới-phải (x+y lớn nhất)
+    rect[1] = pts[np.argmin(diff)]  # Góc trên-phải (x-y nhỏ nhất)
+    rect[3] = pts[np.argmax(diff)]  # Góc dưới-trái (x-y lớn nhất)
+
+    return rect
+
+
 def find_sheet_contour(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
@@ -76,7 +91,34 @@ def find_sheet_contour(image):
     return None
 
 
-img = cv2.imread(full_path)
-img1 = find_sheet_contour(img)
-print_img(img1)
+def warp_perspective(image, pts, output_w=1700, output_h=2200):
+    rect = order_point(pts.astype("float32"))
+
+    dst = np.array(
+        [[0, 0], [output_w - 1, 0], [output_w - 1, output_h - 1], [0, output_h - 1]],
+        dtype="float32",
+    )
+
+    m = cv2.getPerspectiveTransform(rect, dst)
+    warped = cv2.warpPerspective(image, m, (output_w, output_h))
+    return warped
+
+
+def warp_process(image, output_w=1700, output_h=2200):
+    img = cv2.imread(image)
+    if img is None:
+        print("Không đọc đựoc ảnh\n")
+        return None
+
+    pts = find_sheet_contour(img)
+    if pts is None:
+        print("Không tìm thấy 4 góc\n")
+        return None
+
+    warped = warp_perspective(img, pts, output_w, output_h)
+    return warped
+
+
+img = warp_process(full_path)
+print_img(img)
 # print(img1)
