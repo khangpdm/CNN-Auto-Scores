@@ -114,5 +114,5 @@ class CNN_Model(object):
         )
 
 
-model = CNN_Model()
-model.train()
+# model = CNN_Model()
+# model.train()
