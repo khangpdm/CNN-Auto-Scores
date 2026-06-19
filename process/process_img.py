@@ -242,7 +242,7 @@ def map_answer(idx):
     return ans_cir
 
 
-def get_answers(list_choices, model_path="weighted.h5", threshold=0.5):
+def get_answers(list_choices, model_path="weighted.h5", threshold=0.7):
     if not list_choices:
         print("Không có dữ liệu")
         return {}
@@ -252,7 +252,7 @@ def get_answers(list_choices, model_path="weighted.h5", threshold=0.5):
     # Chuẩn hóa về 0 1
     X = np.array(list_choices) / 255.0
 
-    # Dự đoán
+    # Dự đoán (Không hiển thị tiến trình)
     predictions = model.predict(X, verbose=0)
 
     results = {}
@@ -270,11 +270,15 @@ def get_answers(list_choices, model_path="weighted.h5", threshold=0.5):
         best_idx = np.argmax(confidences)
         best_conf = confidences[best_idx]
 
-        if best_conf > threshold:
+        filled_count = sum(1 for c in confidences if c > threshold)
+        if filled_count == 0:
+            answer = None
+        elif filled_count == 1:
             answer = map_answer(best_idx)
         else:
             answer = None
 
+        letters = ["A", "B", "C", "D"]
         results[q + 1] = {
             "answer": answer,
             # "confidence": float(best_conf),
