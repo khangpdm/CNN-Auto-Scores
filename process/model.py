@@ -113,6 +113,5 @@ class CNN_Model(object):
             shuffle=True,
         )
 
-
-# model = CNN_Model()
-# model.train()
+#model = CNN_Model()
+#model.train()
