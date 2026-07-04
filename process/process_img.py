@@ -1,5 +1,4 @@
 import math
-import os
 from collections import defaultdict
 
 import cv2
@@ -7,9 +6,6 @@ import imutils
 import numpy as np
 from model import CNN_Model
 
-samples_dir = "../Samples/"
-sample = "real5.jpg"
-full_path = os.path.join(samples_dir, sample)
 ANSWERS_KEY = {
     1: "A",
     2: "B",
@@ -398,13 +394,13 @@ def warp_process(image, output_w=1700, output_h=2200):
     return warped
 
 
-def find_answer_blocks(image):
-    img = warp_process(image)
+def find_answer_blocks(img):
     if img is None:
         return []
     # Cắt phần dưới
     h, w = img.shape[:2]
-    img = img[int(h * 0.3) : h, :]
+    cut = int(h * 0.3)
+    img = img[cut:h, :]
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     # print_img(gray)
@@ -423,9 +419,7 @@ def find_answer_blocks(image):
     cnts = cv2.findContours(img_canny, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
 
-    ans_blocks = []
-    ans_blocks_rects = []
-    ans_blocks_img = []
+    ans_blocks_data = []
 
     # Sắp xếp contours theo tọa độ x,y tăng dần
     cnts = sorted(cnts, key=lambda c: cv2.boundingRect(c)[0] + cv2.boundingRect(c)[1])
@@ -440,15 +434,13 @@ def find_answer_blocks(image):
 
             # Gần giống hình chữ nhật
             if len(approx) >= 4:
-                ans_blocks.append(c)
-                ans_blocks_rects.append((x, y, w, h))
                 block_img = img[y : y + h, x : x + w]
-                ans_blocks_img.append(block_img)
-    # Vẽ contours lên ảnh
-    img_cnts = img.copy()
-    cv2.drawContours(img_cnts, ans_blocks, -1, (0, 255, 0), 3)
-    print(ans_blocks_rects)
-    return ans_blocks_img
+
+                ab_y = y + cut
+                ab_x = x
+                ans_blocks_data.append({"img": block_img, "x": ab_x, "y": ab_y})
+
+    return ans_blocks_data
 
 
 def process_ans_blocks(ans_blocks_img):
@@ -585,64 +577,3 @@ def get_answers(list_choices, model_path="weighted.h5", threshold=0.7):
         }
 
     return results
-
-
-def compare_and_print(predictions, answer_key=ANSWERS_KEY):
-    if not predictions:
-        print("❌ Không có dữ liệu dự đoán")
-        return
-
-    total = len(predictions)
-    correct = 0
-    wrong_list = []
-
-    for q, data in predictions.items():
-        your_answer = data.get("answer")
-        correct_answer = answer_key.get(q)
-
-        # CHUYỂN "None" STRING THÀNH None
-        your_answer = None if your_answer == "None" else your_answer
-        correct_answer = None if correct_answer == "None" else correct_answer
-
-        if your_answer == correct_answer:
-            correct += 1
-        else:
-            wrong_list.append(
-                {
-                    "question": q,
-                    "your_answer": your_answer
-                    if your_answer is not None
-                    else "Chưa trả lời",
-                    "correct_answer": correct_answer
-                    if correct_answer is not None
-                    else "Không có đáp án",
-                }
-            )
-
-    print("\n" + "=" * 50)
-    print(f"📊 KẾT QUẢ: {correct}/{total} ({correct / total * 100:.1f}%)")
-    print("=" * 50)
-
-    if wrong_list:
-        print("\n❌ CÁC CÂU SAI:")
-        for item in wrong_list:
-            print(
-                f"  Câu {item['question']:3d}: Bạn chọn {item['your_answer']} - Đáp án đúng: {item['correct_answer']}"
-            )
-    else:
-        print("\n🎉 CHÚC MỪNG! BẠN ĐÃ LÀM ĐÚNG TẤT CẢ!")
-
-
-img = cv2.imread(full_path)
-print_img(img)
-img = warp_process(img)
-print_img(img)
-ans_blocks_img = find_answer_blocks(full_path)
-list_ans = process_ans_blocks(ans_blocks_img)
-list_choices = process_list_ans(list_ans)
-answers = get_answers(list_choices)
-compare_and_print(answers)
-# if list_ans is not None:
-#     if len(list_choices) > 0:
-#         for i in range(len(list_choices)):
-#             print_img(list_choices[i])
