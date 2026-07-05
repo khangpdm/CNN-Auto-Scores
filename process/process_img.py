@@ -5,6 +5,7 @@ import cv2
 import imutils
 import numpy as np
 from model import CNN_Model
+from six import binary_type
 
 ANSWERS_KEY = {
     1: "A",
@@ -15,7 +16,7 @@ ANSWERS_KEY = {
     6: "C",
     7: "D",
     8: "B",
-    9: "None",
+    9: "A",
     10: "None",
     11: "C",
     12: "A",
@@ -443,17 +444,20 @@ def find_answer_blocks(img):
     return ans_blocks_data
 
 
-def process_ans_blocks(ans_blocks_img):
+def process_ans_blocks(ans_blocks_data):
     list_ans = []
 
-    for ans_block in ans_blocks_img:
+    for block in ans_blocks_data:
         # print_img(ans_block)
-        ans_block_img = np.array(ans_block)
+        ans_block_img = np.array(block["img"])
+        b_x = block["x"]
+        b_y = block["y"]
 
         # .shape trả về chiều cao, chiều rộng và kênh màu
         offset1 = math.ceil(ans_block_img.shape[0] / 6)
         for i in range(6):
             # Vị trí bắt đầu : kết thúc, và : là lấy toàn bộ các cột
+            y_start = i * offset1
             box_img = np.array(ans_block_img[i * offset1 : (i + 1) * offset1, :])
             height_box = box_img.shape[0]
 
@@ -461,26 +465,31 @@ def process_ans_blocks(ans_blocks_img):
             offset2 = math.ceil(box_img.shape[0] / 5)
 
             for j in range(5):
-                list_ans.append(box_img[j * offset2 : (j + 1) * offset2, :])
+                line_y_in_block = y_start + 14 + (j * offset2)
+                line_img = box_img[j * offset2 : (j + 1) * offset2]
+                list_ans.append({
+                    "img": line_img,
+                    "x": b_x,
+                    "y": b_y + line_y_in_block
+                })
 
     return list_ans
 
 
 def process_list_ans(list_ans):
     list_choices = []
-    offset = 68
-    start = 70
 
-    for ans_img in list_ans:
+    for item in list_ans:
+        ans_img = item["img"]
+        line_x = item["x"]
+        line_y = item["y"]
+
         if len(ans_img.shape) == 3:
             gray = cv2.cvtColor(ans_img, cv2.COLOR_BGR2GRAY)
         else:
             gray = ans_img
 
         h, w = gray.shape
-        for i in range(4):
-            x1 = start + i * offset
-            x2 = start + (i + 1) * offset
         # Tính offset dựa trên chiều rộng thực tế
         if w < 200:  # Nếu block quá nhỏ, bỏ qua
             continue
@@ -502,14 +511,20 @@ def process_list_ans(list_ans):
                 continue
 
             bubble = gray[:, x1:x2]
-            # print_img(bubble)
-            _, bubble = cv2.threshold(
-                bubble, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU
-            )
             bubble = cv2.resize(bubble, (28, 28), interpolation=cv2.INTER_AREA)
             bubble = bubble.reshape(28, 28, 1)
+            # print_img(bubble)
 
-            list_choices.append(bubble)
+            center_x = line_x + int((x1 + x2) / 2)
+            center_y = line_y + int(h/2)
+            radius = int((x2 - x1) / 2) - 2
+            list_choices.append({
+                "img": bubble,
+                "center_x": center_x,
+                "center_y": center_y,
+                "radius": radius,
+                "choice_char": ["A","B","C","D"][i]
+            })
 
     print(f"Đã trích xuất {len(list_choices)} đáp án")
 
@@ -518,6 +533,30 @@ def process_list_ans(list_ans):
         return []
 
     return list_choices
+
+
+def pixel_counting(bubble_img, lower_th=5.0, upper_th=15.0):
+    # 1. Ép kiểu về uint8
+    if bubble_img.max() <= 1.0:
+        gray = (bubble_img * 255).astype(np.uint8)
+    else:
+        gray = bubble_img.astype(np.uint8)
+
+    gray = np.squeeze(gray)
+
+    _, binary = cv2.threshold(gray, 115, 255, cv2.THRESH_BINARY_INV)
+
+    # Đếm số pixel trắng (vết tô + chữ cái)
+    total_pixels = binary.size
+    white_pixels = cv2.countNonZero(binary)
+    white_ratio = (white_pixels / total_pixels) * 100
+
+    if white_ratio < lower_th:
+        return "EMPTY", white_ratio
+    elif white_ratio > upper_th:
+        return "FILLED", white_ratio
+    else:
+        return "UNCERTAIN", white_ratio
 
 
 def map_answer(idx):
@@ -538,42 +577,102 @@ def get_answers(list_choices, model_path="weighted.h5", threshold=0.7):
         print("Không có dữ liệu")
         return {}
 
-    model = CNN_Model(model_path).build_model(rt=True)
-
-    # Chuẩn hóa về 0 1
-    X = np.array(list_choices) / 255.0
-
-    # Dự đoán (Không hiển thị tiến trình)
-    predictions = model.predict(X, verbose=0)
-
+    model = None
+    letters = ["A", "B", "C", "D"]
     results = {}
-    total_questions = len(list_choices) // 4
+    total_question = len(list_choices) // 4
 
-    for q in range(total_questions):
+    print("\n" + "=" * 70)
+    print(
+        f"{'CÂU':<6} | {'Ô':<3} | {'% PIXEL ĐEN':<13} | {'TRẠNG THÁI FILTER':<18} | {'KẾT QUẢ CUỐI'}"
+    )
+    print("=" * 70)
+
+    for q in range(total_question):
         start = q * 4
-        # Lấy 4 ô của câu hiện tại
-        q_preds = predictions[start : start + 4]
+        q_choices = list_choices[start : start + 4]
+        q_num = q + 1
 
-        # Tìm ô có xác suất cao nhất
-        confidences = [
-            pred[1] for pred in q_preds
-        ]  # pred[1] là xác suất class 1 (được tô)
+        confidences = []
+        debug_info = []  # Lưu thông tin phục vụ in log debug
+        geometry_data = {} #để gom tạo độ từ list_choices
+
+        for i, choice_dict in enumerate(q_choices):
+            bubble = choice_dict["img"]
+            cx = choice_dict["center_x"]
+            cy = choice_dict["center_y"]
+            r = choice_dict["radius"]
+            char = choice_dict["choice_char"]
+
+            geometry_data[char] = {"cx": cx, "cy": cy, "r": r}
+
+            status, ratio = pixel_counting(bubble)
+
+            if status == "EMPTY":
+                conf_val = 0.0
+                confidences.append(conf_val)
+                debug_info.append(
+                    f"  - {letters[i]}: Ratio={ratio:5.2f}% -> [EMPTY] (Gán 0.0)"
+                )
+            elif status == "FILLED":
+                conf_val = 1.0
+                confidences.append(conf_val)
+                debug_info.append(
+                    f"  - {letters[i]}: Ratio={ratio:5.2f}% -> [FILLED] (Gán 1.0)"
+                )
+            else:
+                # Vùng nghi ngờ -> Gọi CNN
+                if model is None:
+                    model = CNN_Model(model_path).build_model(rt=True)
+
+                # Ép kiểu uint8 cho ảnh gốc
+                if bubble.max() <= 1.0:
+                    bubble_uint8 = (bubble * 255).astype(np.uint8)
+                else:
+                    bubble_uint8 = bubble.astype(np.uint8)
+
+                # NHỊ PHÂN HÓA (Otsu + INV) ĐỂ PHỤC VỤ CNN
+                _, cnn_input_img = cv2.threshold(
+                    bubble_uint8,
+                    0,
+                    255,
+                    cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU,
+                )
+
+                # Chuẩn hóa đầu vào [0, 1] theo kiến trúc mạng mẫu
+                X_single = np.array([cnn_input_img]) / 255.0
+                X_single = X_single.reshape(1, 28, 28, 1)
+                pred = model.predict(X_single, verbose=0)
+                conf_val = float(pred[0][1])
+                confidences.append(conf_val)
+                debug_info.append(
+                    f"  - {letters[i]}: Ratio={ratio:5.2f}% -> [UNCERTAIN] -> CNN đoán: {conf_val:.4f}"
+                )
+
+        # Logic quyết định đáp án của câu hỏi
         best_idx = np.argmax(confidences)
         best_conf = confidences[best_idx]
-
         filled_count = sum(1 for c in confidences if c > threshold)
-        if filled_count == 0:
-            answer = None
-        elif filled_count == 1:
+
+        if filled_count == 1:
             answer = map_answer(best_idx)
         else:
-            answer = None
+            answer = "Trống/Trùng"
 
-        letters = ["A", "B", "C", "D"]
+        # --- IN DEBUG CHI TIẾT TỪNG Ô CỦA CÂU RA TERMINAL ---
+        print(f"Câu {q_num:<2} | Đang xét 4 lựa chọn:")
+        for log in debug_info:
+            print(log)
+        print(
+            f"       => Kết luận câu {q_num}: Chọn [{answer}] (Confidence cao nhất: {best_conf:.2f})"
+        )
+        print("-" * 70)
+
         results[q + 1] = {
-            "answer": answer,
-            "confidence": float(best_conf),
+            "answer": None if answer == "Trống/Trùng" else answer,
+            "ratio": float(best_conf),
             "details": {letters[i]: float(confidences[i]) for i in range(4)},
+            "geometry": geometry_data
         }
 
     return results
