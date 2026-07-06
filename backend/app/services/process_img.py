@@ -1,0 +1,390 @@
+import cv2
+import imutils
+import numpy as np
+
+ANSWERS_KEY = {
+    1: "A",
+    2: "B",
+    3: "B",
+    4: None,
+    5: "A",
+    6: "C",
+    7: "D",
+    8: "B",
+    9: "A",
+    10: "None",
+    11: "C",
+    12: "A",
+    13: "D",
+    14: "B",
+    15: None,
+    16: "A",
+    17: "D",
+    18: "B",
+    19: "C",
+    20: "A",
+    21: None,
+    22: "B",
+    23: None,
+    24: None,
+    25: "C",
+    26: "A",
+    27: "C",
+    28: None,
+    29: "D",
+    30: "B",
+    31: None,
+    32: "B",
+    33: "A",
+    34: "B",
+    35: "C",
+    36: "D",
+    37: "A",
+    38: None,
+    39: "B",
+    40: "C",
+    41: None,
+    42: "A",
+    43: "B",
+    44: "C",
+    45: "D",
+    46: "C",
+    47: "A",
+    48: None,
+    49: "B",
+    50: None,
+    51: "B",
+    52: "D",
+    53: "A",
+    54: "None",
+    55: "C",
+    56: "B",
+    57: "None",
+    58: "C",
+    59: "None",
+    60: "None",
+    61: "None",
+    62: "A",
+    63: "B",
+    64: "A",
+    65: "C",
+    66: "A",
+    67: None,
+    68: "None",
+    69: "C",
+    70: "A",
+    71: "B",
+    72: "A",
+    73: "D",
+    74: "C",
+    75: "B",
+    76: "B",
+    77: "C",
+    78: "A",
+    79: "D",
+    80: "None",
+    81: "None",
+    82: "B",
+    83: "A",
+    84: "C",
+    85: "None",
+    86: "D",
+    87: "C",
+    88: "A",
+    89: "C",
+    90: "None",
+    91: "None",
+    92: "C",
+    93: "None",
+    94: "None",
+    95: "D",
+    96: "C",
+    97: "A",
+    98: "B",
+    99: "D",
+    100: "None",
+    101: "B",
+    102: "A",
+    103: "D",
+    104: "C",
+    105: "B",
+    106: "C",
+    107: "A",
+    108: "D",
+    109: "B",
+    110: "A",
+    111: "C",
+    112: "B",
+    113: "None",
+    114: "None",
+    115: "None",
+    116: "None",
+    117: "B",
+    118: None,
+    119: "None",
+    120: "None",
+}
+
+
+# Hàm hiển thị hình ảnh
+def print_img(img1):
+    if img1 is not None:
+        height, width = img1.shape[:2]
+        if height > 800 or width > 800:
+            scale = 800 / max(height, width)
+            new_width = int(width * scale)
+            new_height = int(height * scale)
+            img1 = cv2.resize(img1, (new_width, new_height))
+            print(f"Đã resize thành: {new_width}x{new_height}")
+
+        cv2.imshow("Anh goc", img1)
+        while True:
+            key = cv2.waitKey(100)  # Kiểm tra phím bấm mỗi 100ms
+            if key != -1:
+                break
+            # Lấy trạng thái cửa sổ , neu cua so dang hien thi se tra ve 1
+            if cv2.getWindowProperty("Anh goc", cv2.WND_PROP_VISIBLE) < 1:
+                break
+
+        cv2.destroyAllWindows()
+
+
+def get_x(s):
+    return s[1][0]
+
+
+def get_y(s):
+    return s[1][1]
+
+
+def get_h(s):
+    return s[1][3]
+
+
+def get_x_ver1(s):
+    s = cv2.boundingRect(s)
+    return s[0] * s[1]
+
+
+def order_point(pts):
+    rect = np.zeros((4, 2), dtype="float32")
+    # Theo hàng (axis = 1) cộng trái sang phải
+    s = pts.sum(axis=1)
+    # Trừ cột trái sang phải
+    diff = np.diff(pts, axis=1)
+    # Góc 0,0 của x và y sẽ nằm ở trên (Trong hình học máy)
+    rect[0] = pts[np.argmin(s)]  # Góc trên-trái (x+y nhỏ nhất)
+    rect[2] = pts[np.argmax(s)]  # Góc dưới-phải (x+y lớn nhất)
+    rect[1] = pts[np.argmin(diff)]  # Góc trên-phải (x-y nhỏ nhất)
+    rect[3] = pts[np.argmax(diff)]  # Góc dưới-trái (x-y lớn nhất)
+
+    return rect
+
+
+def find_sheet_contour(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # print_img(gray)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    # print_img(blurred)
+    img_canny = cv2.Canny(blurred, 50, 150)
+    # print_img(img_canny)
+    kernel = np.ones((5, 5), np.uint8)
+    img_canny = cv2.dilate(img_canny, kernel, iterations=2)
+    # print_img(img_canny)
+    cnts = cv2.findContours(img_canny, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
+
+    for c in cnts:
+        # Đo độ dài(chu vi) của đuờng viền, true để đảm bảo đuờng viền khép kín
+        peri = cv2.arcLength(c, True)
+        # Hàm này giúp loại bỏ các điểm không quan trọng, chỉ giữ lại các điểm ngoặc (góc)
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        if len(approx) == 4:
+            area = cv2.contourArea(approx)
+            img_area = image.shape[0] * image.shape[1]
+            if area > 0.15 * img_area:
+                # approx sẽ trả về kiểu (4,1,2) lần luợt là số góc, mỗi điểm nằm trong 1 list, 2 là x và y
+                # (4,2) sẽ trả về x,y trong list đơn giản hơn (bỏ nhiều dấu [])
+                return approx.reshape(4, 2)
+    return None
+
+
+def warp_perspective(image, pts, output_w=1700, output_h=2200):
+    rect = order_point(pts.astype("float32"))
+
+    # Ghi 4 tọa độ của hình đích, -1 là do pixel bắt đầu từ 0
+    dst = np.array(
+        [[0, 0], [output_w - 1, 0], [output_w - 1, output_h - 1], [0, output_h - 1]],
+        dtype="float32",
+    )
+
+    m = cv2.getPerspectiveTransform(rect, dst)
+    warped = cv2.warpPerspective(image, m, (output_w, output_h))
+    return warped
+
+
+def find_timing_marks(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    for thresh_val in [50, 70, 90, 110, 130]:
+        _, thresh = cv2.threshold(gray, thresh_val, 255, cv2.THRESH_BINARY_INV)
+        contours, _ = cv2.findContours(
+            thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        marks = []
+        for c in contours:
+            x, y, w, h = cv2.boundingRect(c)
+            area = w * h
+            ratio = w / float(h) if h > 0 else 0
+            # Lấy hình chữ nhật dẹt
+            if 30 < area < 4000 and ratio > 1.5 and ratio < 6:
+                marks.append((x, y, w, h))
+
+        if len(marks) < 4:
+            continue
+
+    h_img, w_img = img.shape[:2]
+
+    margin_x = w_img * 0.1
+    margin_y = h_img * 0.1
+
+    marks_in_bound = []
+    for m in marks:
+        x, y, w, h = m
+        cx = x + w / 2
+        cy = y + h / 2
+        if margin_x < cx < w_img - margin_x and margin_y < cy < h_img - margin_y:
+            marks_in_bound.append(m)
+    if len(marks_in_bound) < 4:
+        return None
+    marks_in_bound = np.array(marks_in_bound)
+    centers = np.array([[x + w / 2, y + h / 2] for x, y, w, h in marks_in_bound])
+
+    # x+y
+    s = centers.sum(axis=1)
+    # x-y(Lấy tấy cả cột 0 - tất cả cột 1)
+    diff = centers[:, 0] - centers[:, 1]
+
+    tl = centers[np.argmin(s)]
+    br = centers[np.argmax(s)]
+    tr = centers[np.argmax(diff)]
+    bl = centers[np.argmin(diff)]
+
+    # img_copy = img.copy()
+    #
+    # # Vẽ tất cả các mark
+    # for i, (x, y, w, h) in enumerate(marks):
+    #     cv2.rectangle(img_copy, (x, y), (x + w, y + h), (0, 255, 0), 1)
+    #     cv2.putText(
+    #         img_copy,
+    #         str(i + 1),
+    #         (x, y - 5),
+    #         cv2.FONT_HERSHEY_SIMPLEX,
+    #         0.5,
+    #         (0, 255, 0),
+    #         1,
+    #     )
+    #
+    # # Vẽ 4 điểm góc (to hơn)
+    # cv2.circle(img_copy, tuple(tl.astype(int)), 12, (0, 0, 255), -1)
+    # cv2.circle(img_copy, tuple(tr.astype(int)), 12, (255, 0, 0), -1)
+    # cv2.circle(img_copy, tuple(bl.astype(int)), 12, (0, 255, 255), -1)
+    # cv2.circle(img_copy, tuple(br.astype(int)), 12, (255, 0, 255), -1)
+    #
+    # # Ghi chú
+    # cv2.putText(
+    #     img_copy,
+    #     "TL",
+    #     tuple(tl.astype(int) - [30, 30]),
+    #     cv2.FONT_HERSHEY_SIMPLEX,
+    #     1,
+    #     (0, 0, 255),
+    #     2,
+    # )
+    # cv2.putText(
+    #     img_copy,
+    #     "TR",
+    #     tuple(tr.astype(int) + [10, -30]),
+    #     cv2.FONT_HERSHEY_SIMPLEX,
+    #     1,
+    #     (255, 0, 0),
+    #     2,
+    # )
+    # cv2.putText(
+    #     img_copy,
+    #     "BL",
+    #     tuple(bl.astype(int) - [30, 30]),
+    #     cv2.FONT_HERSHEY_SIMPLEX,
+    #     1,
+    #     (0, 255, 255),
+    #     2,
+    # )
+    # cv2.putText(
+    #     img_copy,
+    #     "BR",
+    #     tuple(br.astype(int) + [10, 10]),
+    #     cv2.FONT_HERSHEY_SIMPLEX,
+    #     1,
+    #     (255, 0, 255),
+    #     2,
+    # )
+    #
+    # # Hiển thị số thứ tự
+    # cv2.putText(
+    #     img_copy,
+    #     f"Total marks: {len(marks)}",
+    #     (10, 30),
+    #     cv2.FONT_HERSHEY_SIMPLEX,
+    #     0.7,
+    #     (255, 255, 255),
+    #     2,
+    # )
+    #
+    # print(f"tl: {tl}\ntr: {tr}\nbl: {bl}\nbr: {br}\n")
+    # print_img(img_copy)
+    return np.array([tl, tr, br, bl], dtype="float32")
+
+
+def warp_process(image, output_w=1700, output_h=2200):
+    if isinstance(image, str):
+        img = cv2.imread(image)
+        if img is None:
+            print("Không đọc được ảnh\n")
+            return None
+    else:
+        img = image
+
+    # Strategy 1: Tìm contour
+    pts = find_sheet_contour(img)
+
+    # Strategy 2: Tìm timing marks
+    if pts is None:
+        pts = find_timing_marks(img)
+
+    # Strategy 3: Adaptive threshold + contour
+    if pts is None:
+        # Thử adaptive threshold
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        thresh = cv2.adaptiveThreshold(
+            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+        )
+        cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cnts = imutils.grab_contours(cnts)
+        cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
+
+        for c in cnts[:5]:
+            peri = cv2.arcLength(c, True)
+            approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+            if len(approx) == 4:
+                area = cv2.contourArea(approx)
+                if area > 0.1 * img.shape[0] * img.shape[1]:
+                    pts = approx.reshape(4, 2)
+                    break
+
+    if pts is None:
+        print("❌ Không tìm thấy 4 góc\n")
+        return None
+
+    warped = warp_perspective(img, pts, output_w, output_h)
+    return warped
