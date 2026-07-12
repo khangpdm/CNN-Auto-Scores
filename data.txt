@@ -1,0 +1,9 @@
+tensorflow>=2.10,<2.16
+opencv-python>=4.5
+numpy>=1.21
+imutils>=0.5
+matplotlib==3.9.0
+PyQT5
+streamlit
+fastapi
+uvicorn

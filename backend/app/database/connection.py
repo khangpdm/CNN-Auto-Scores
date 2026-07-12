@@ -6,7 +6,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Cấu hình Database (SQLite cho Local)
-DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'app_data.db')}"
+DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'database' ,'app_data.db')}"
 
 # Tạo Engine kết nối
 engine = create_engine(

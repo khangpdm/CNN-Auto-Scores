@@ -238,6 +238,8 @@ class StudentResult(Base):
     student_code = Column(String(20), nullable=True, index=True)
     detected_test_code = Column(String(50), nullable=True, index=True)
     raw_image_path = Column(String(500), nullable=True)
+    processed_image_path = Column(String(500), nullable=True)  # ✅ Ảnh sau chấm (có vẽ kết quả)
+    overlay_image_path = Column(String(500), nullable=True)  # ✅ Ảnh overlay (đáp án đúng/sai)
 
     # Kết quả chấm (AI)
     answers = Column(JSON, default={})
