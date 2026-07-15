@@ -210,6 +210,7 @@ class ScanBatch(Base):
 
     storage_path = Column(String(500), nullable=True)
     upload_method = Column(String(20), default="zip")
+    scan_metadata = Column(JSON, nullable=True)
 
     # Relationships
     exam = relationship("Exam", back_populates="scan_batches")

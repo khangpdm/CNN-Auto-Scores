@@ -1,7 +1,9 @@
 import math
 import os
 import cv2
-import numpy as np
+
+from dotenv import load_dotenv
+load_dotenv()  # Tìm file .env trong thư mục hiện tại
 
 # Giữ nguyên các hàm import từ file xử lý ảnh của bạn
 from services.process_img import (

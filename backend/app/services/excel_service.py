@@ -3,6 +3,7 @@ from io import BytesIO
 from sqlalchemy.orm import Session
 from datetime import datetime
 from database.models import AnswerKey, ExamSession, Student
+from database.connection import SessionLocal
 
 def parse_and_save_student_from_excel(
         excel_bytes: bytes,
@@ -11,7 +12,7 @@ def parse_and_save_student_from_excel(
         db: Session
 ) -> dict:
     try:
-        df = pd.read_excel(BytesIO(excel_bytes))
+        df = pd.read_excel(BytesIO(excel_bytes), dtype=str)
     except Exception as e:
         raise ValueError(f"Không thể đọc file Excel: {str(e)}")
 
@@ -31,6 +32,10 @@ def parse_and_save_student_from_excel(
         try:
             full_name = str(row.get("Họ và tên", "")).strip()
             student_code = str(row.get("Số báo danh", "")).strip()
+            room = str(row.get("Phòng thi", "")).strip()
+            note = str(row.get("Ghi chú", "")).strip()
+            class_name = str(row.get("Lớp", "")).strip()
+            gender = str(row.get("Giới tính", "")).strip()
             if not full_name or not student_code:
                 continue
 
@@ -57,9 +62,11 @@ def parse_and_save_student_from_excel(
                 created_by = created_by,
                 student_code = student_code,
                 full_name = full_name,
-                class_name = str(row.get("Lớp","")) if pd.notna(row.get("Lớp")) else None,
-                note = str(row.get("Ghi chú", "")) if pd.notna(row.get("Ghi chú")) else None,
-                gender = str(row.get("Giới tính","")) if pd.notna(row.get("Giới tính")) else None
+                room=room,
+                dob=dob,
+                class_name = class_name,
+                note = note,
+                gender = gender
             )
 
             db.add(student)
@@ -67,6 +74,11 @@ def parse_and_save_student_from_excel(
             results["students"].append({
                 "student_code": student_code,
                 "full_name": full_name,
+                "room": room,
+                "dob": dob,
+                "class_name": class_name,
+                "note": note,
+                "gender": gender
             })
         except Exception as e:
             results["errors"].append({

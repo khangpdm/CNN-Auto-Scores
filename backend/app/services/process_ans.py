@@ -293,24 +293,24 @@ def process_answer(warp_image):
         return {}
 
     # Bước 1: Tìm và cắt ra các khối chứa đáp án (Answer Blocks)
-    print("🔄 Bước 1: Đang tìm kiếm các khối đáp án...")
+    #print("🔄 Bước 1: Đang tìm kiếm các khối đáp án...")
     ans_blocks_data = find_answer_blocks(warp_image)
     if not ans_blocks_data:
-        print("❌ Không tìm thấy khối đáp án nào đạt tiêu chuẩn!")
+        #print("❌ Không tìm thấy khối đáp án nào đạt tiêu chuẩn!")
         return {}
 
     # Bước 2: Cắt các khối đáp án thành từng dòng câu hỏi riêng biệt
-    print(f"🔄 Bước 2: Đã tìm thấy {len(ans_blocks_data)} khối. Đang phân tách câu hỏi...")
+    #print(f"🔄 Bước 2: Đã tìm thấy {len(ans_blocks_data)} khối. Đang phân tách câu hỏi...")
     list_ans = process_ans_blocks(ans_blocks_data)
 
     # Bước 3: Cắt từng dòng thành 4 ô tròn (A, B, C, D) riêng lẻ
-    print("🔄 Bước 3: Đang trích xuất chi tiết từng ô tròn bubble (A, B, C, D)...")
+    #print("🔄 Bước 3: Đang trích xuất chi tiết từng ô tròn bubble (A, B, C, D)...")
     list_choices = process_list_ans(list_ans)
     if not list_choices:
         print("❌ Lỗi cấu trúc: Số lượng ô tròn trích xuất không khớp tiêu chuẩn (480 ô)!")
         return {}
 
     # Bước 4: Đưa các ô tròn vào bộ lọc Pixel + AI CNN để nhận diện đáp án từng câu
-    print("🔄 Bước 4: Đang chạy AI chấm điểm và nhận diện đáp án...")
+    #print("🔄 Bước 4: Đang chạy AI chấm điểm và nhận diện đáp án...")
     final_results = get_answers(list_choices,threshold=0.8)
     return final_results

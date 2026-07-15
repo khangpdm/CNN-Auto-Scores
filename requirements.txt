@@ -5,4 +5,8 @@ imutils>=0.5
 matplotlib==3.9.0
 PyQT5
 streamlit
-fastapi uvicorn
+fastapi
+uvicorn
+python-dotenv
+pandas
+pandas

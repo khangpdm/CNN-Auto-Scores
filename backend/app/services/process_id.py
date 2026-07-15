@@ -266,18 +266,18 @@ def process_id(warp_image):
     results = {"student_id": id_student_rs, "exam_id": id_exam_rs}
 
     # Bước 4: Ghép chuỗi kết quả để in ra màn hình
-    sbd_digits = []
-    for col_idx in sorted(id_student_rs.keys()):
-        digit = id_student_rs[col_idx]["answer"]
-        sbd_digits.append(digit if digit is not None else "?")
-
-    print(f"\n🔮 CHUỖI SỐ BÁO DANH ĐỌC ĐƯỢC: {''.join(sbd_digits)}")
-
-    exam_digits = []
-    for col_idx in sorted(id_exam_rs.keys()):
-        digit = id_exam_rs[col_idx]["answer"]
-        exam_digits.append(digit if digit is not None else "?")
-
-    print(f"\n🔮 CHUỖI MÃ ĐỀ ĐỌC ĐƯỢC: {''.join(exam_digits)}")
+    # sbd_digits = []
+    # for col_idx in sorted(id_student_rs.keys()):
+    #     digit = id_student_rs[col_idx]["answer"]
+    #     sbd_digits.append(digit if digit is not None else "?")
+    #
+    # print(f"\n🔮 CHUỖI SỐ BÁO DANH ĐỌC ĐƯỢC: {''.join(sbd_digits)}")
+    #
+    # exam_digits = []
+    # for col_idx in sorted(id_exam_rs.keys()):
+    #     digit = id_exam_rs[col_idx]["answer"]
+    #     exam_digits.append(digit if digit is not None else "?")
+    #
+    # print(f"\n🔮 CHUỖI MÃ ĐỀ ĐỌC ĐƯỢC: {''.join(exam_digits)}")
 
     return results
