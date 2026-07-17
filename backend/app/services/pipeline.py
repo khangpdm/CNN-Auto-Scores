@@ -59,52 +59,67 @@ def process_and_draw_result(warped_img, results, answers_key, id_results=None):
     MOVE_Y = 0
 
     for q_idx, q_data in results.items():
-        student_ans = q_data.get("answer")
-        true_ans = answers_key.get(q_idx, None)
+        student_ans = q_data.get("answer")  # Có thể là "A", "B", "C", "D" hoặc None (nếu trống/trùng)
+        # `process_answer` trả về key int, còn dữ liệu lưu trong JSON của
+        # StudentResult dùng key str. Hỗ trợ cả hai để khi giáo viên vừa sửa
+        # mã đề, đáp án mới vẫn được tìm thấy và vẽ lên ảnh.
+        true_ans = answers_key.get(q_idx)
+        if true_ans is None:
+            true_ans = answers_key.get(str(q_idx))
+        if true_ans is None:
+            try:
+                true_ans = answers_key.get(int(q_idx))
+            except (TypeError, ValueError):
+                pass
         geom = q_data.get("geometry", {})
 
-        if student_ans == true_ans and true_ans is not None:
-            if true_ans in geom:
-                pos = geom[true_ans]
-                cx = pos["cx"] + MOVE_X
-                cy = pos["cy"] + MOVE_Y
-                cv2.circle(draw_img, (cx, cy), 15, (0, 255, 0), 3)
-
-        elif student_ans != true_ans and student_ans is not None:
-            if student_ans in geom:
-                pos_wrong = geom[student_ans]
-                cx_w = pos_wrong["cx"] + MOVE_X
-                cy_w = pos_wrong["cy"] + MOVE_Y
-                cv2.circle(draw_img, (cx_w, cy_w), 15, (0, 0, 255), 3)
+        # TRƯỜNG HỢP 1: Học sinh KHÔNG KHOANH hoặc KHOANH TRÙNG (student_ans là None)
+        if student_ans is None:
             if true_ans in geom:
                 pos_right = geom[true_ans]
                 cx_r = pos_right["cx"] + MOVE_X
                 cy_r = pos_right["cy"] + MOVE_Y
-                cv2.circle(draw_img, (cx_r, cy_r), 15, (0, 255, 0), 3)
-
-        elif student_ans is None and true_ans is not None:
-            if true_ans in geom:
-                pos_right = geom[true_ans]
-                cx_r = pos_right["cx"] + MOVE_X
-                cy_r = pos_right["cy"] + MOVE_Y
+                # Vẽ vòng tròn màu VÀNG báo hiệu câu này bị bỏ sót hoặc lỗi tô trùng
                 cv2.circle(draw_img, (cx_r, cy_r), 15, (0, 255, 255), 3)
+
+        # TRƯỜNG HỢP 2: Học sinh CÓ CHỌN đáp án (student_ans hợp lệ "A", "B", "C", "D")
+        else:
+            # 2a. Học sinh chọn ĐÚNG
+            if student_ans == true_ans:
+                if true_ans in geom:
+                    pos = geom[true_ans]
+                    cx = pos["cx"] + MOVE_X
+                    cy = pos["cy"] + MOVE_Y
+                    # Vẽ vòng tròn màu XANH LÁ CÂY
+                    cv2.circle(draw_img, (cx, cy), 15, (0, 255, 0), 3)
+
+            # 2b. Học sinh chọn SAI
+            else:
+                # Vẽ ô học sinh chọn sai bằng màu ĐỎ
+                if student_ans in geom:
+                    pos_wrong = geom[student_ans]
+                    cx_w = pos_wrong["cx"] + MOVE_X
+                    cy_w = pos_wrong["cy"] + MOVE_Y
+                    cv2.circle(draw_img, (cx_w, cy_w), 15, (0, 0, 255), 3)
+
+                # Đồng thời vẽ đáp án ĐÚNG bên cạnh bằng màu XANH LÁ CÂY để đối chiếu
+                if true_ans in geom:
+                    pos_right = geom[true_ans]
+                    cx_r = pos_right["cx"] + MOVE_X
+                    cy_r = pos_right["cy"] + MOVE_Y
+                    cv2.circle(draw_img, (cx_r, cy_r), 15, (0, 255, 0), 3)
+
     if id_results:
-        # Gom hai nhóm SBD và Mã đề xử lý chung một lượt bằng vòng lặp
         for key_name in ["student_id", "exam_id"]:
             if key_name in id_results:
                 block_data = id_results[key_name]
-
-                # Duyệt qua từng cột trong khối SBD/Mã đề
                 for col_idx, col_data in block_data.items():
                     chosen_ans = col_data.get("answer")
                     geom = col_data.get("geometry", {})
-
-                    # Nếu học sinh có tô ô đó và có tọa độ geometry
                     if chosen_ans and chosen_ans in geom:
                         pos = geom[chosen_ans]
                         cx = pos["cx"] + MOVE_X
                         cy = pos["cy"] + MOVE_Y
-                        # Vẽ vòng tròn màu xanh lá cây để biểu thị ô đã được nhận diện thành công
                         cv2.circle(draw_img, (cx, cy), 15, (0, 255, 0), 3)
 
     return draw_img

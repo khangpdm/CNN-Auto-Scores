@@ -8,6 +8,9 @@ from tensorflow.keras.layers import Conv2D, Dense, Dropout, Flatten, MaxPooling2
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.utils import to_categorical
 
+# ✅ TẠO BIẾN TOÀN CỤC ĐỂ LƯU MODEL ĐÃ LOAD LÊN RAM
+_SHARED_MODEL = None
+
 
 class CNN_Model(object):
     def __init__(self, weight_path=None):
@@ -15,6 +18,16 @@ class CNN_Model(object):
         self.model = None
 
     def build_model(self, rt=False):
+        global _SHARED_MODEL
+
+        # ✅ KIỂM TRA: Nếu model đã được load rồi, trả về ngay lập tức, không rebuild nữa
+        if _SHARED_MODEL is not None:
+            self.model = _SHARED_MODEL
+            if rt:
+                return self.model
+            return
+
+        # Nếu chưa có, tiến hành build mạng lần đầu tiên và duy nhất
         self.model = Sequential()
         self.model.add(
             Conv2D(
@@ -40,11 +53,13 @@ class CNN_Model(object):
         self.model.add(Dropout(0.5))
         self.model.add(Dense(128, activation="relu"))
         self.model.add(Dropout(0.5))
-        # Đưa ra choice hay unchoice, softmax giúp đưa về tổng xác suất là 100%
         self.model.add(Dense(2, activation="softmax"))
 
         if self.weight_path is not None:
             self.model.load_weights(self.weight_path)
+
+        # ✅ LƯU LẠI VÀO BIẾN TOÀN CỤC ĐỂ LẦN SAU DÙNG LẠI
+        _SHARED_MODEL = self.model
 
         if rt:
             return self.model
@@ -82,6 +97,10 @@ class CNN_Model(object):
     def train(self):
         images, labels = self.load_data()
 
+        # Khi train thì bắt buộc phải build mới hoàn toàn, reset biến cache
+        global _SHARED_MODEL
+        _SHARED_MODEL = None
+
         self.build_model(rt=False)
 
         self.model.compile(
@@ -113,5 +132,5 @@ class CNN_Model(object):
             shuffle=True,
         )
 
-#model = CNN_Model()
-#model.train()
+# model = CNN_Model()
+# model.train()

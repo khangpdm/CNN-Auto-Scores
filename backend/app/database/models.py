@@ -247,6 +247,7 @@ class StudentResult(Base):
     correct_count = Column(Integer, default=0)
     total_questions = Column(Integer, default=0)
     score = Column(Float, default=0.0)
+    warnings = Column(JSON, default=[])
 
     # Chấm tay (Manual Override)
     is_manual_override = Column(Boolean, default=False)

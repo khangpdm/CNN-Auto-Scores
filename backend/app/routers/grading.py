@@ -218,12 +218,17 @@ def get_batch_status(
         "created_at": batch.scan_time,
         "results": [
             {
-                "id": r.id,
+                "result_id": r.id,
+                "image_url": r.raw_image_path,
                 "student_code": r.student_code,
-                "score": r.score,
-                "status": r.status,
+                "student_name": r.student.full_name if r.student else None,
+                "test_code": r.detected_test_code,
+                "total_score": r.score,
+                "status": r.status,  # NEED_REVIEW, FAILED, graded
+                "is_manual_override": r.is_manual_override,
+                "warnings": r.warnings or [],  # 👈 Trả về danh sách các lỗi AI bóc được để hiển thị cảnh báo
                 "processed_image_url": r.processed_image_path
             }
             for r in results
-        ] if batch.status in ["completed", "partial"] else []
+        ]
     }

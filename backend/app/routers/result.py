@@ -8,7 +8,7 @@ from database.connection import get_db
 from database.models import User, ScanBatch
 from routers.auth import get_current_user
 from services.results_service import (
-    get_results_list,
+    get_result_list,
     get_result_detail,
     manual_edit_result
 )
@@ -33,7 +33,7 @@ class ResultItem(BaseModel):
     test_code: Optional[str]
     total_score: float
     status: ResultStatus
-    is_manually_edited: bool
+    is_manual_override: bool
     warnings: List[str]
     batch_id: Optional[int]
 
@@ -57,7 +57,7 @@ class ResultDetailResponse(BaseModel):
     test_code: Optional[str]
     total_score: float
     status: ResultStatus
-    is_manually_edited: bool
+    is_manual_override: bool
     questions: List[QuestionDetail]
 
 class ManualEditRequest(BaseModel):
@@ -78,7 +78,7 @@ def get_results(
         current_user: User = Depends(get_current_user),
 ):
     try:
-        data = get_results_list(
+        data = get_result_list(
             session_id=session_id,
             db = db,
             status_filter = status_filter,

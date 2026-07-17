@@ -1,7 +1,16 @@
+import os
+
+import cv2
 from sqlalchemy.orm import Session
 from database.models import StudentResult, Student, ExamSession, AnswerKey, ScanBatch
 from typing import List, Optional, Dict
 from datetime import datetime
+
+from services.pipeline import process_and_draw_result
+from services.process_ans import find_answer_blocks, process_ans_blocks, process_list_ans, get_answers
+from services.process_id import process_id
+from services.process_img import warp_process
+
 
 def get_result_detail(
         result_id: int,
@@ -13,7 +22,7 @@ def get_result_detail(
 
     student = result.student if result.student_id else None
 
-    status, _ = get_result_detail(result, student)
+    status, _ = get_result_status(result, student)
 
     questions = []
     if result.answers:
@@ -37,9 +46,10 @@ def get_result_detail(
         "test_code": result.detected_test_code,
         "total_score": result.score,
         "status": status,
-        "is_manually_edited": result.is_manually_override,
+        "is_manual_override": result.is_manual_override,
         "questions": questions
     }
+
 
 def manual_edit_result(
         result_id: int,
@@ -49,57 +59,118 @@ def manual_edit_result(
 ):
     result = db.query(StudentResult).filter(StudentResult.id == result_id).first()
     if not result:
-        raise ValueError("Không tìm đuợc kết quả")
+        raise ValueError("Không tìm thấy kết quả")
 
     session_obj = db.query(ExamSession).filter(ExamSession.id == result.session_id).first()
     if not session_obj:
         raise ValueError("Không tìm thấy đợt thi")
 
+    # 1. Cập nhật thông tin text SBD và Mã đề từ giáo viên nhập vào đối tượng DB trước
     if edit_data.get("student_code"):
         new_student_code = edit_data["student_code"].strip()
         result.student_code = new_student_code
 
-        student = db.query(Student).filter(Student.id == result.student_id).first()
+        student = db.query(Student).filter(
+            Student.session_id == result.session_id,
+            Student.student_code == new_student_code
+        ).first()
         result.student_id = student.id if student else None
 
     if edit_data.get("test_code"):
-        # Nếu có mã đề mới, lấy đáp án mới
-        new_test_code = edit_data["test_code"].strip()
-        result.detected_test_code = new_test_code
+        result.detected_test_code = edit_data["test_code"].strip()
 
-        answer_key = db.query(AnswerKey).filter(
-            AnswerKey.session_id == result.session_id,
-            AnswerKey.test_code == new_test_code
-        ).first()
+    # 2. Lấy đáp án mẫu chuẩn theo Mã đề MỚI vừa cập nhật
+    answer_key = db.query(AnswerKey).filter(
+        AnswerKey.session_id == result.session_id,
+        AnswerKey.test_code == result.detected_test_code
+    ).first()
 
-        if not answer_key:
-            raise ValueError(f"Mã đề '{new_test_code}' chưa có đáp án")
+    correct_map = {int(k): v for k, v in answer_key.answers.items()} if answer_key else {}
+    score_map = answer_key.score_per_question or {} if answer_key else {}
 
-        correct_map = {int(k): v for k, v in answer_key.answers.items()}
-        score_map = answer_key.score_per_question or {}
-    else:
-        # Giữ nguyên mã đề cũ, lấy đáp án từ database
-        answer_key = db.query(AnswerKey).filter(
-            AnswerKey.session_id == result.session_id,
-            AnswerKey.test_code == result.detected_test_code
-        ).first()
-
-        if answer_key:
-            correct_map = {int(k): v for k, v in answer_key.answers.items()}
-            score_map = answer_key.score_per_question or {}
-
-    total_q = len(correct_map) if correct_map else result.total_questions
+    total_q = len(correct_map) if correct_map else (result.total_questions or 0)
     default_score = session_obj.max_score / total_q if total_q > 0 else 0.0
 
     manual_answers = edit_data.get("answers", {})
-    current_answers = result.answers or {}
 
+    # Khởi tạo các cấu trúc dữ liệu phục vụ xử lý ảnh
+    warped_img = None
+    ai_detected_results = {}
+    id_results_updated = {}  # Cấu trúc lưu thông tin SBD/Mã đề cập nhật để truyền vào hàm vẽ
+
+    # 3. XỬ LÝ ẢNH: QUÉT TOÀN BỘ TỌA ĐỘ HÌNH HỌC (Cả đáp án và SBD/Mã đề)
+    if result.raw_image_path:
+        APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        raw_relative_path = result.raw_image_path.replace("/static/", "storage/").lstrip("/")
+        source_raw_path = os.path.normpath(os.path.join(APP_DIR, raw_relative_path))
+
+        if os.path.exists(source_raw_path):
+            try:
+                print(f"Tìm thấy ảnh gốc, bắt đầu tái tạo tọa độ...")
+                # --- ĐÃ XOÁ BỎ DÒNG READ ẢNH DƯ THỪA TẠI ĐÂY ---
+                warped_img = warp_process(source_raw_path)
+
+                # A. Quét tọa độ của vùng Đáp án trắc nghiệm
+                ans_blocks_data = find_answer_blocks(warped_img)
+                list_ans = process_ans_blocks(ans_blocks_data)
+                list_choices = process_list_ans(list_ans)
+
+                # --- ĐÃ BỔ SUNG DÒNG QUAN TRỌNG BỊ THIẾU TẠI ĐÂY ---
+                ai_detected_results = get_answers(list_choices, threshold=0.8)
+
+                # B. Quét tọa độ của vùng SBD và Mã đề từ file bạn vừa gửi
+                ai_id_geometry = process_id(warped_img)
+
+                # C. Đồng bộ hóa Số báo danh mới (Giao viên sửa tay) vào tọa độ hình học
+                if "student_id" in ai_id_geometry and result.student_code:
+                    sbd_str = result.student_code.zfill(6)  # Đảm bảo đủ chiều dài cột SBD (ví dụ 6 số)
+                    raw_sbd_geometry = ai_id_geometry["student_id"]
+
+                    id_results_updated["student_id"] = {}
+                    for col_idx, col_data in raw_sbd_geometry.items():
+                        char_pos = col_idx - 1
+                        assigned_digit = sbd_str[char_pos] if char_pos < len(sbd_str) else None
+
+                        id_results_updated["student_id"][col_idx] = {
+                            "answer": assigned_digit,  # Đè đáp án sửa tay vào đây để hàm vẽ khoanh ô này
+                            "ratio": 1.0,
+                            "details": col_data.get("details", {}),
+                            "geometry": col_data.get("geometry", {})
+                        }
+
+                # D. Đồng bộ hóa Mã đề mới (Giáo viên sửa tay) vào tọa độ hình học
+                if "exam_id" in ai_id_geometry and result.detected_test_code:
+                    md_str = result.detected_test_code.zfill(3)  # Đảm bảo đủ 3 cột mã đề
+                    raw_md_geometry = ai_id_geometry["exam_id"]
+
+                    id_results_updated["exam_id"] = {}
+                    for col_idx, col_data in raw_md_geometry.items():
+                        char_pos = col_idx - 1
+                        assigned_digit = md_str[char_pos] if char_pos < len(md_str) else None
+
+                        id_results_updated["exam_id"][col_idx] = {
+                            "answer": assigned_digit,  # Đè mã đề sửa tay vào đây để hàm vẽ khoanh ô này
+                            "ratio": 1.0,
+                            "details": col_data.get("details", {}),
+                            "geometry": col_data.get("geometry", {})
+                        }
+
+                #print("Đồng bộ hóa tọa độ hình học SBD/Mã đề mới thành công!")
+
+            except Exception as img_err:
+                import traceback
+                print(f"Lỗi trích xuất tọa độ từ hình ảnh: {str(img_err)}")
+                traceback.print_exc()
+
+    # 4. CHẤM ĐIỂM VÀ ĐÓNG GÓI DỮ LIỆU ĐÁP ÁN (Dựa trên đáp án mẫu của Mã đề MỚI)
     correct_count = 0
     total_score = 0.0
-    updated_answer = {}
+    updated_answers = {}
+    current_answers = result.answers or {}
 
     for q_idx in range(1, total_q + 1):
         str_q = str(q_idx)
+        # --- ĐÃ XOÁ BỎ BIẾN INT_Q DƯ THỪA TẠI ĐÂY ---
 
         if str_q in manual_answers:
             student_ans = manual_answers[str_q]
@@ -107,29 +178,71 @@ def manual_edit_result(
             student_ans = current_answers.get(str_q, {}).get("choice")
 
         correct_ans = correct_map.get(q_idx)
-        is_correct = (student_ans == correct_ans)
+        is_correct = (student_ans == correct_ans) if correct_ans else False
         q_score = float(score_map.get(str_q, default_score))
 
         if is_correct:
             correct_count += 1
             total_score += q_score
 
-        updated_answer[str_q] = {
+        ai_q_data = ai_detected_results.get(q_idx, {})  # Thay int_q bằng q_idx trực tiếp
+        valid_geometry = ai_q_data.get("geometry", {})
+
+        updated_answers[str_q] = {
             "choice": student_ans,
+            "answer": student_ans,
             "is_correct": is_correct,
             "correct_answer": correct_ans,
             "earned_score": q_score if is_correct else 0.0,
-            "max_score": q_score
+            "max_score": q_score,
+            "geometry": valid_geometry
         }
 
-    result.answers = updated_answer
+    # Lưu kết quả chấm mới vào DB
+    result.answers = updated_answers
     result.correct_count = correct_count
-    result.total_question = total_q
+    result.total_questions = total_q
     result.score = round(total_score, 2)
     result.is_manual_override = True
     result.verified_by = verified_by
     result.updated_at = datetime.utcnow()
     result.status = "graded"
+
+    # 5. TIẾN HÀNH VẼ ĐÈ LÊN ẢNH KẾT QUẢ VỚI ĐÁP ÁN VÀ SBD/MÃ ĐỀ MỚI
+    if warped_img is not None and updated_answers:
+        try:
+            new_processed_img = process_and_draw_result(
+                warped_img=warped_img,
+                results=updated_answers,
+                answers_key=correct_map,
+                id_results=id_results_updated
+            )
+
+            if new_processed_img is not None:
+                # LUÔN LUÔN bốc từ raw_image_path để sinh tên file chuẩn, tránh lấy lại path lỗi cũ trong DB
+                raw_filename = os.path.basename(result.raw_image_path)
+
+                # Biến đổi chuẩn xác từ raw_ -> processed_
+                if raw_filename.startswith("raw_"):
+                    processed_filename = raw_filename.replace("raw_", "processed_", 1)
+                else:
+                    processed_filename = f"processed_{raw_filename}"
+
+                # Cập nhật lại URL chuẩn vào Database (Ghi đè hoàn toàn URL lỗi nếu có)
+                processed_url = f"/static/processed/{processed_filename}"
+                result.processed_image_path = processed_url
+
+                # Quy đổi URL tĩnh thành đường dẫn đĩa vật lý
+                processed_relative_path = processed_url.replace("/static/", "storage/").lstrip("/")
+                target_write_path = os.path.normpath(os.path.join(APP_DIR, processed_relative_path))
+
+                # Thực hiện ghi đè dữ liệu ảnh mới trực tiếp lên file chuẩn
+                os.makedirs(os.path.dirname(target_write_path), exist_ok=True)
+                cv2.imwrite(target_write_path, new_processed_img)
+                #print(f"Đã ghi đè hình ảnh thành công vào file chuẩn: {target_write_path}")
+
+        except Exception as draw_err:
+            print(f"❌ Lỗi kết xuất hình ảnh: {str(draw_err)}")
 
     db.commit()
     db.refresh(result)
@@ -137,11 +250,13 @@ def manual_edit_result(
     return {
         "result_id": result.id,
         "student_code": result.student_code,
-        "test_code": result.test_code,
+        "test_code": result.detected_test_code,
         "score": result.score,
-        "is_manually_edited": result.is_manually_override,
-        "message": "Cập nhât thành công"
+        "is_manually_edited": result.is_manual_override,
+        "image_url": result.processed_image_path or result.raw_image_path,
+        "message": "Cập nhật dữ liệu, chấm lại và vẽ lại hình ảnh thành công!"
     }
+
 
 def get_result_list(
         session_id: int,
@@ -150,470 +265,67 @@ def get_result_list(
         search: Optional[str] = None,
         page: int = 1,
         limit: int = 50,
-):
-    batches = db.query(ScanBatch).filter(ScanBatch.session_id == session_id).all()
+) -> dict:
 
-    all_images = []
-    for batch in batches:
-        if batch.scan_metadata and "images" in batch.scan_metadata:
-            for img in batch.scan_metadata["images"]:
-                img["batch_id"] = batch.id
-                all_images.append(img)
+    query = db.query(StudentResult).filter(StudentResult.session_id == session_id)
 
-    if not all_images:
-        return {
-            "summary": {
-                "total_submitted": 0,
-                "valid_count": 0,
-                "warning_count": 0,
-            },
-            "items": []
-        }
-
-    success_results = db.query(StudentResult).filter(StudentResult.session_id == session_id).all()
-
-    success_map = {}
-    for r in success_results:
-        if r.student_code and r.detected_test_code:
-            key = f"{r.student_code}_{r.detected_test_code}"
-            success_map[key] = r
-
-    items = []
+    all_results = query.all()
+    total_submitted = len(all_results)
     valid_count = 0
     warning_count = 0
 
-    for img in all_images:
-        student_code = img.get("student_code")
-        test_code = img.get("test_code")
-        status_img = img.get("status", "pending")
-        error = img.get("error")
-        filename = img.get("filename", "unknown")
+    items = []
+    for r in all_results:
+        student = r.student if r.student_id else None
+        result_status, warnings = get_result_status(r, student)
 
-        key = f"{student_code}_{test_code}" if student_code and test_code else None
-        result = success_map.get(key) if key else None
-
-        if result:
-            student = result.student if result.student_id else None
-            result_status, warnings = get_result_status(result, student)
-
-            if result_status == "VALID":
-                valid_count += 1
-            else:
-                warning_count += 1
-
-            items.append({
-                "result_id": result.id,
-                "image_url": result.processed_image_path or result.raw_image_path or f"/static/uploads/{filename}",
-                "student_code": result.student_code,
-                "student_name": result.full_name if student else None,
-                "test_code": result.detected_test_code,
-                "total_score": result.score,
-                "status": result_status,
-                "is_manually_edited": result.is_manually_override,
-                "warnings": warnings,
-                "batch_id": img.get("batch_id")
-            })
+        if result_status == "VALID":
+            valid_count += 1
         else:
-            warnings = []
-            if status_img == "failed" and error:
-                warnings.append(error)
-            else:
-                if not student_code:
-                    warnings.append("Không nhận diện đuợc Số báo danh")
-                if not test_code:
-                    warnings.append("Không nhận diện đuợc Mã đề")
-
-            if not warnings:
-                warnings.append("Bài thi chưa đuợc xử lý")
-
             warning_count += 1
 
-            items.append({
-                "result_id": None,
-                "image_url": f"/static/uploads/{filename}",
-                "student_code": student_code,
-                "student_name": None,
-                "test_code": test_code,
-                "total_score": 0.0,
-                "status": "NEED_REVIEW",
-                "is_manually_edited": False,
-                "warnings": warnings,
-                "batch_id": img.get("batch_id")
-            })
+        item = {
+            "result_id": r.id,  # Luôn có ID vì bài lỗi cũng đã có record Draft
+            "image_url": r.processed_image_path or r.raw_image_path,
+            "student_code": r.student_code,
+            "student_name": student.full_name if student else None,
+            "test_code": r.detected_test_code,
+            "total_score": r.score or 0.0,
+            "status": result_status,
+            "is_manually_edited": r.is_manual_override,
+            "warnings": warnings,
+            "batch_id": r.batch_id if hasattr(r, 'batch_id') else None
+        }
+        items.append(item)
 
+    # 3. Bộ lọc theo status_filter
     if status_filter == "VALID_ONLY":
-        items = [ item for item in items if item["status"] == "VALID"]
+        items = [i for i in items if i["status"] == "VALID"]
     elif status_filter == "WARNING_ONLY":
-        items = [item for item in items if item["status"] == "WARNING"]
+        items = [i for i in items if i["status"] != "VALID"]
 
+    # 4. Tìm kiếm theo SBD hoặc Tên học sinh
     if search:
         search_lower = search.lower()
-        filtered_items = []
-        for item in items:
-            match = False
-            if item["student_code"] and search_lower in item["student_code"].lower:
-                match = True
-            if item["student_name"] and search_lower in item["student_name"].lower():
-                match = True
-            if match:
-                filtered_items.append(item)
-        items = filtered_items
+        items = [
+            i for i in items
+            if (i["student_code"] and search_lower in i["student_code"].lower()) or
+               (i["student_name"] and search_lower in i["student_name"].lower())
+        ]
 
+    # 5. Phân trang
     total = len(items)
     start = (page - 1) * limit
-    end = start + limit
-    paged_items = items[start:end]
+    paged_items = items[start:start + limit]
 
     return {
         "summary": {
-            "total_submitted": total,
+            "total_submitted": total_submitted,
             "valid_count": valid_count,
             "warning_count": warning_count,
         },
         "items": paged_items
     }
-
-
-# services/result_service.py
-from sqlalchemy.orm import Session
-from database.models import (
-    StudentResult, Student, ExamSession, ScanBatch, AnswerKey, User
-)
-from typing import List, Optional, Dict
-from datetime import datetime
-
-
-def get_results_list(
-        session_id: int,
-        db: Session,
-        status_filter: str = "ALL",
-        search: Optional[str] = None,
-        page: int = 1,
-        limit: int = 50
-) -> dict:
-    """
-    Lấy danh sách kết quả FULL (bao gồm cả bài bị lỗi)
-    """
-    # === 1. Lấy tất cả ScanBatch của session này ===
-    batches = db.query(ScanBatch).filter(ScanBatch.session_id == session_id).all()
-
-    # === 2. Gom tất cả ảnh từ scan_metadata của các batch ===
-    all_images = []
-    for batch in batches:
-        if batch.scan_metadata and "images" in batch.scan_metadata:
-            for img in batch.scan_metadata["images"]:
-                img["batch_id"] = batch.id
-                all_images.append(img)
-
-    # Nếu không có ảnh nào, trả về danh sách rỗng
-    if not all_images:
-        return {
-            "summary": {
-                "total_submitted": 0,
-                "valid_count": 0,
-                "warning_count": 0
-            },
-            "items": []
-        }
-
-    # === 3. Lấy tất cả StudentResult đã chấm thành công ===
-    success_results = db.query(StudentResult).filter(
-        StudentResult.session_id == session_id
-    ).all()
-
-    # Tạo dict để tra cứu nhanh: key = student_code + test_code
-    success_map = {}
-    for r in success_results:
-        if r.student_code and r.detected_test_code:
-            key = f"{r.student_code}_{r.detected_test_code}"
-            success_map[key] = r
-
-    # === 4. Ghép nối: Xây dựng danh sách items ===
-    items = []
-    valid_count = 0
-    warning_count = 0
-
-    for img in all_images:
-        student_code = img.get("student_code")
-        test_code = img.get("test_code")
-        status_img = img.get("status", "pending")
-        error = img.get("error")
-        filename = img.get("filename", "unknown")
-
-        # Tìm trong success_map
-        key = f"{student_code}_{test_code}" if student_code and test_code else None
-        result = success_map.get(key) if key else None
-
-        if result:
-            # === CÓ KẾT QUẢ ===
-            student = result.student if result.student_id else None
-
-            # Xác định trạng thái
-            result_status, warnings = get_result_status(result, student)
-
-            if result_status == "VALID":
-                valid_count += 1
-            else:
-                warning_count += 1
-
-            items.append({
-                "result_id": result.id,
-                "image_url": result.processed_image_path or result.raw_image_path or f"/static/uploads/{filename}",
-                "student_code": result.student_code,
-                "student_name": student.full_name if student else None,
-                "test_code": result.detected_test_code,
-                "total_score": result.score,
-                "status": result_status,
-                "is_manually_edited": result.is_manual_override,
-                "warnings": warnings,
-                "batch_id": img.get("batch_id")
-            })
-        else:
-            # === KHÔNG CÓ KẾT QUẢ (bài bị lỗi) ===
-            warnings = []
-
-            if status_img == "failed" and error:
-                warnings.append(error)
-            else:
-                if not student_code:
-                    warnings.append("Không nhận diện được Số báo danh")
-                if not test_code:
-                    warnings.append("Không nhận diện được Mã đề")
-
-            if not warnings:
-                warnings.append("Bài thi chưa được xử lý")
-
-            warning_count += 1
-
-            items.append({
-                "result_id": None,
-                "image_url": f"/static/uploads/{filename}",
-                "student_code": student_code,
-                "student_name": None,
-                "test_code": test_code,
-                "total_score": 0.0,
-                "status": "NEED_REVIEW",
-                "is_manually_edited": False,
-                "warnings": warnings,
-                "batch_id": img.get("batch_id")
-            })
-
-    # === 5. Lọc theo status_filter ===
-    if status_filter == "VALID_ONLY":
-        items = [item for item in items if item["status"] == "VALID"]
-    elif status_filter == "WARNING_ONLY":
-        items = [item for item in items if item["status"] != "VALID"]
-
-    # === 6. Tìm kiếm theo SBD hoặc tên ===
-    if search:
-        search_lower = search.lower()
-        filtered_items = []
-        for item in items:
-            match = False
-            if item["student_code"] and search_lower in item["student_code"].lower():
-                match = True
-            if item["student_name"] and search_lower in item["student_name"].lower():
-                match = True
-            if match:
-                filtered_items.append(item)
-        items = filtered_items
-
-    # === 7. Phân trang ===
-    total = len(items)
-    start = (page - 1) * limit
-    end = start + limit
-    paged_items = items[start:end]
-
-    return {
-        "summary": {
-            "total_submitted": total,
-            "valid_count": valid_count,
-            "warning_count": warning_count
-        },
-        "items": paged_items
-    }
-
-
-def get_result_detail(
-        result_id: int,
-        db: Session
-) -> dict:
-    """Lấy chi tiết 1 bài thi (cho split-screen)"""
-
-    result = db.query(StudentResult).filter(
-        StudentResult.id == result_id
-    ).first()
-
-    if not result:
-        raise ValueError("Không tìm thấy kết quả")
-
-    student = result.student if result.student_id else None
-
-    # Xác định status
-    status, _ = get_result_status(result, student)
-
-    # Parse chi tiết câu hỏi
-    questions = []
-    if result.answers:
-        for q_num, q_data in result.answers.items():
-            questions.append({
-                "question_number": int(q_num),
-                "student_answer": q_data.get("choice"),
-                "correct_answer": q_data.get("correct_answer"),
-                "is_correct": q_data.get("is_correct", False),
-                "earned_score": q_data.get("earned_score", 0.0),
-                "max_score": q_data.get("max_score", 0.0)
-            })
-
-    # Sắp xếp theo số câu
-    questions.sort(key=lambda x: x["question_number"])
-
-    return {
-        "result_id": result.id,
-        "image_url": result.processed_image_path or result.raw_image_path,
-        "student_code": result.student_code,
-        "student_name": student.full_name if student else None,
-        "test_code": result.detected_test_code,
-        "total_score": result.score,
-        "status": status,
-        "is_manually_edited": result.is_manual_override,
-        "questions": questions
-    }
-
-
-def manual_edit_result(
-        result_id: int,
-        edit_data: dict,
-        db: Session,
-        verified_by: int
-) -> dict:
-    """Giáo viên chỉnh sửa tay và tính lại điểm"""
-
-    result = db.query(StudentResult).filter(
-        StudentResult.id == result_id
-    ).first()
-
-    if not result:
-        raise ValueError("Không tìm thấy kết quả")
-
-    session_obj = db.query(ExamSession).filter(
-        ExamSession.id == result.session_id
-    ).first()
-
-    if not session_obj:
-        raise ValueError("Không tìm thấy đợt thi")
-
-    # === 1. Cập nhật SBD mới ===
-    if edit_data.get("student_code"):
-        new_student_code = edit_data["student_code"].strip()
-        result.student_code = new_student_code
-
-        # Tìm student trong database
-        student = db.query(Student).filter(
-            Student.session_id == result.session_id,
-            Student.student_code == new_student_code
-        ).first()
-
-        result.student_id = student.id if student else None
-
-    # === 2. Cập nhật Mã đề mới ===
-    if edit_data.get("test_code"):
-        new_test_code = edit_data["test_code"].strip()
-        result.detected_test_code = new_test_code
-
-        # Lấy đáp án mới
-        answer_key = db.query(AnswerKey).filter(
-            AnswerKey.session_id == result.session_id,
-            AnswerKey.test_code == new_test_code
-        ).first()
-
-        if not answer_key:
-            raise ValueError(f"Mã đề '{new_test_code}' chưa có đáp án")
-
-        # Lưu đáp án đúng để tính điểm
-        correct_map = {int(k): v for k, v in answer_key.answers.items()}
-        score_map = answer_key.score_per_question or {}
-        result._correct_answers_map = correct_map
-        result._score_map = score_map
-
-    # === 3. Cập nhật đáp án thủ công ===
-    if edit_data.get("answers"):
-        manual_answers = edit_data["answers"]
-        result.manual_answers = manual_answers
-        result.is_manual_override = True
-
-        # Lấy đáp án đúng
-        correct_map = getattr(result, '_correct_answers_map', None)
-        if not correct_map:
-            answer_key = db.query(AnswerKey).filter(
-                AnswerKey.session_id == result.session_id,
-                AnswerKey.test_code == result.detected_test_code
-            ).first()
-            if answer_key:
-                correct_map = {int(k): v for k, v in answer_key.answers.items()}
-                score_map = answer_key.score_per_question or {}
-            else:
-                correct_map = {}
-                score_map = {}
-
-        # Tính lại điểm
-        total_q = len(correct_map) if correct_map else result.total_questions
-        default_score = session_obj.max_score / total_q if total_q > 0 else 0.0
-
-        correct_count = 0
-        total_score = 0.0
-        updated_answers = {}
-
-        current_answers = result.answers or {}
-
-        for q_idx in range(1, total_q + 1):
-            str_q = str(q_idx)
-
-            # Dùng đáp án thủ công nếu có
-            if str_q in manual_answers:
-                student_ans = manual_answers[str_q]
-            else:
-                student_ans = current_answers.get(str_q, {}).get("choice")
-
-            correct_ans = correct_map.get(q_idx)
-            is_correct = (student_ans == correct_ans)
-            q_score = float(score_map.get(str_q, default_score))
-
-            if is_correct:
-                correct_count += 1
-                total_score += q_score
-
-            updated_answers[str_q] = {
-                "choice": student_ans,
-                "is_correct": is_correct,
-                "correct_answer": correct_ans,
-                "earned_score": q_score if is_correct else 0.0,
-                "max_score": q_score
-            }
-
-        result.answers = updated_answers
-        result.correct_count = correct_count
-        result.total_questions = total_q
-        result.score = round(total_score, 2)
-
-    # === 4. Cập nhật scan_metadata ===
-    result.is_manual_override = True
-    result.verified_by = verified_by
-    result.updated_at = datetime.utcnow()
-    result.status = "graded"
-
-    db.commit()
-    db.refresh(result)
-
-    return {
-        "result_id": result.id,
-        "student_code": result.student_code,
-        "test_code": result.detected_test_code,
-        "score": result.score,
-        "is_manually_edited": result.is_manual_override,
-        "message": "Cập nhật thành công"
-    }
-
 
 def get_result_status(result, student):
     """Xác định trạng thái của bài thi"""
