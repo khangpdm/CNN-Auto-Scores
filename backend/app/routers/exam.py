@@ -6,7 +6,8 @@ from sqlalchemy.sql.coercions import expect
 from streamlit import status
 
 from database.connection import get_db
-from database.models import Exam, ExamStatus, AnswerKey, ExamStatus, SessionStatus, User, ExamSession
+from database.models import Exam, ExamStatus, AnswerKey, ExamStatus, SessionStatus, User, ExamSession, ExamShared, \
+    ExamPermission
 from routers.auth import get_current_user
 from services.excel_service import parse_and_save_answer_to_db, parse_and_save_student_from_excel
 
@@ -21,6 +22,20 @@ class CreateSessionSchema(BaseModel):
     session_name: str
     total_questions: int
     max_score: float = 10.0
+
+class ShareExamSchema(BaseModel):
+    teacher_email: str
+    permission: ExamPermission = ExamPermission.VIEWER
+
+class UpdateExamSchema(BaseModel):
+    exam_name: Optional[str] = None
+    status: Optional[ExamStatus] = None
+
+class UpdateSessionSchema(BaseModel):
+    session_name: Optional[str] = None
+    total_questions: Optional[int] = None
+    max_score: Optional[float] = None
+    status: Optional[SessionStatus] = None
 
 @routers.post("", summary="Tạo kỳ thi mới")
 def create_exam(
@@ -134,52 +149,260 @@ async def upload_exam_students(
         }
     }
 
-@routers.post("/session/{session_id}/upload_answers", summary="Upload Excel đáp án")
-async def upload_exam_answers(
-        session_id: int,
-        file_excel: UploadFile = File(...),
+
+@routers.post("/{exam_id}/share", summary="Chia sẻ quyền quản lý‌/Chấm bài cho giáo viên")
+def share_exam_to_teacher(
+        exam_id: int,
+        data: ShareExamSchema,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user),
 ):
-    session_obj = db.query(ExamSession).filter(ExamSession.id == session_id).first()
-    if not session_obj:
-        raise HTTPException(status_code = 404, detail="Đợt thi không tồn tại")
-    if not (file_excel.filename.endswith(".xlsx") or file_excel.filename.endswith(".xls")):
-        raise HTTPException(
-            status_code = 400,
-            detail="Chỉ chấp nhận file Excel(.xlsx, .xls)"
-        )
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(404, "Kỳ thi không tồn tại")
 
-    try:
-        exel_bytes = await file_excel.read()
-    except Exception as e:
-        raise HTTPException(
-            status_code = 400,
-            detail=f"Không thể đọc file: {str(e)}"
-        )
-    try:
-        result = parse_and_save_answer_to_db(
-            excel_bytes = exel_bytes,
-            exam_id = session_obj.exam_id,
-            session_id = session_obj.id,
-            created_by = current_user.id,
-            db = db
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code = 400,
-            detail=str(e)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code = 500,
-            detail=f"Lỗi khi xử lý file: {str(e)}"
-        )
-    session_obj.status = SessionStatus.GRADING
+    if exam.created_by != current_user.id:
+        raise HTTPException(403, "Bạn không có quyền chia sẻ kỳ thi này")
+
+    target_teacher = db.query(User).filter(User.email == data.teacher_email.strip()).first()
+    if not target_teacher:
+        raise HTTPException(404, "Không tìm thấy tài khoản với email này")
+
+    if target_teacher.id == current_user.id:
+        raise HTTPException(400, "Bạn không thể chia sẻ kỳ thi cho chính mình")
+
+    already_shared = db.query(ExamShared).filter(
+        ExamShared.exam_id == exam_id,
+        ExamShared.user_id == current_user.id
+    ).first()
+
+    if already_shared:
+        already_shared.permission = data.permission
+        already_shared.shared_by = current_user.id
+        return {
+            "status": "success",
+            "message": f"Đã cập nhật quyền của giáo viên thành: {data.permission.value}"
+        }
+
+    new_share = ExamShared(
+        exam_id = exam_id,
+        user_id = target_teacher.id,
+        permission = data.permission,
+        shared_by = current_user.id
+    )
+    db.add(new_share)
     db.commit()
 
     return {
         "status": "success",
-        "message": f"Đã nạp đáp án cho {len(result)} mã đề",
-        "loaded_test_codes": result
+        "message": f"Đã chia sẻ kỳ thi thành công với quyền '{data.permission.value}' cho {target_teacher.full_name}"
+    }
+@routers.get("", summary="Lấy danh sách các kỳ thi của tôi hoặc đuợc chia sẻ")
+def get_my_exams(
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user),
+):
+    my_exams = db.query(Exam).filter(Exam.created_by == current_user.id).all()
+
+    shared_records = db.query(ExamShared).filter(ExamShared.user_id == current_user.id).all()
+
+    shared_exams_list = []
+    for share in shared_records:
+        if share.exam:
+            shared_exams_list.append({
+                "exam": share.exam,
+                "permission": share.permission.value,
+                "shared_by": share.shared_by
+            })
+    return {
+        "status": "success",
+        "data": {
+            "my_exams": my_exams,
+            "shared_exams": shared_exams_list
+        }
+    }
+
+@routers.get("/{exam_id}", summary="Lấy thông tin chi tiết 1 kỳ thi")
+def get_exam_detail(
+        exam_id: int,
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user),
+):
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(404, "Kỳ thi không tồn tại")
+
+    is_shared = db.query(ExamShared).filter(
+        ExamShared.exam_id == exam_id,
+        ExamShared.user_id == current_user.id
+    ).first()
+
+    if exam.created_by != current_user.id and not is_shared:
+        raise HTTPException(403, "Bạn không có quyền truy cập kỳ thi này")
+
+    return {
+        "status": "success",
+        "data": {
+            "exam": exam,
+            "role_context": "owner" if exam.created_by == current_user.id else is_shared.permission.value,
+        }
+    }
+
+@routers.get("/{exam_id}/sessions", summary="Lấy danh sách các Đợt thi của kỳ thi này")
+def get_exam_session(
+        exam_id: int,
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user),
+):
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(404, "Kỳ thi không tồn tại")
+
+    is_shared = db.query(ExamShared).filter(
+        ExamShared.exam_id == exam_id,
+        ExamShared.user_id == current_user.id
+    )
+    if exam.created_by != current_user.id and not is_shared:
+        raise HTTPException(403, "Bạn không có quyền xem thông tin kỳ thi này")
+
+    sessions = db.query(ExamSession).filter(ExamSession.exam_id == exam_id).all()
+    return {
+        "status": "success",
+        "data": sessions
+    }
+
+@routers.put("/{exam_id}", summary="Cập nhật tên/ mô tả kỳ thi")
+def update_exam(
+        exam_id: int,
+        data: UpdateExamSchema,
+        db:Session = Depends(get_db),
+        current_user = Depends(get_current_user),
+):
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(404, "Kỳ thi không tồn tại")
+
+    if exam.created_by != current_user.id:
+        share_perm = db.query(ExamShared).filter(
+            ExamShared.exam_id == exam_id,
+            ExamShared.user_id == current_user.id
+        ).first()
+        if not share_perm or share_perm.permission != ExamPermission.EDITOR:
+            raise HTTPException(403, "Bạn không có quyền chỉnh sửa kỳ thi này")
+
+    if data.exam_name is not None:
+        exam.exam_name = data.exam_name.strip()
+    if data.status is not None:
+        exam.status = data.status
+
+    db.commit()
+    db.refresh(exam)
+    return {
+        "status": "success",
+        "message": "Cập nhật thông tin kỳ thi thành công",
+        "data": exam
+    }
+
+@routers.delete("/{exam_id}",summary="Xóa kỳ thi")
+def delete_exam(
+        exam_id: int,
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user),
+):
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(404, "Kỳ thi không tồn tại")
+
+    if exam.created_by != current_user.id:
+        raise HTTPException(403, "Chỉ chủ sở hữu mới có quyền xóa")
+
+    db.delete(exam)
+    db.commit()
+
+    return{
+        "status": "success",
+        "message": f"Đã xóa thành công kỳ thi '{exam.exam_name}' và toàn bộ dữ liệu liên quan"
+    }
+
+
+@routers.put("/{exam_id}/sessions/{session_id}", summary="Cập nhật tên/thông tin đợt thi")
+def update_exam_session(
+        exam_id: int,
+        session_id: int,
+        data: UpdateSessionSchema,
+        db: Session = Depends(get_db),
+        current_user=Depends(get_current_user),
+):
+    # 1. Tìm đợt thi theo session_id và exam_id
+    session = db.query(ExamSession).filter(
+        ExamSession.id == session_id,
+        ExamSession.exam_id == exam_id
+    ).first()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Đợt thi không tồn tại trong kỳ thi này"
+        )
+
+    # 2. Kiểm tra phân quyền
+    # Nếu không phải người tạo ra Session hoặc Exam gốc
+    if session.created_by != current_user.id and session.exam.created_by != current_user.id:
+        share_perm = db.query(ExamShared).filter(
+            ExamShared.exam_id == exam_id,  # Phải dùng exam_id của Kỳ thi
+            ExamShared.user_id == current_user.id
+        ).first()
+
+        if not share_perm or share_perm.permission != ExamPermission.EDITOR:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền chỉnh sửa đợt thi này"
+            )
+
+    # 3. Cập nhật dữ liệu đúng với trường của ExamSession
+    if data.session_name is not None:
+        session.session_name = data.session_name.strip()
+    if data.total_questions is not None:
+        session.total_questions = data.total_questions
+    if data.max_score is not None:
+        session.max_score = data.max_score
+    if data.status is not None:
+        session.status = data.status
+
+    db.commit()
+    db.refresh(session)
+
+    return {
+        "status": "success",
+        "message": "Cập nhật thông tin đợt thi thành công",
+        "data": session
+    }
+
+@routers.delete("/{exam_id}/sessions/{session_id}", summary="Xóa đợt thi")
+def delete_exam_session(
+        exam_id: int,
+        session_id: int,
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user),
+):
+    session = db.query(ExamSession).filter(
+        ExamSession.id == session_id,
+        ExamSession.exam_id == exam_id).first()
+
+    if not session:
+        raise HTTPException(404, "Đợt thi không tồn tại")
+
+    if session.created_by != current_user.id and session.exam.created_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chỉ chủ sở hữu mới có quyền xóa đợt thi này"
+        )
+
+    session_name = session.session_name
+    db.delete(session)
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"Đã xóa thành công đợt thi '{session_name}' và toàn bộ dữ liệu liên quan"
     }
