@@ -101,54 +101,6 @@ def create_exam_session(
         "session_id": new_session.id,
         "message": "Tạo đợt thi thành công"
     }
-@routers.post("/session/{session_id}/upload_students", summary="Upload Excel danh sách học sinh")
-async def upload_exam_students(
-        session_id: int,
-        file_excel: UploadFile = File(...),
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user),
-):
-    session_obj = db.query(ExamSession).filter(
-        ExamSession.id == session_id
-    ).first()
-    if not session_obj:
-        raise HTTPException(status_code = 400, detail="Đợt thi không tồn tại")
-    try:
-        exel_bytes = await file_excel.read()
-    except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Không thể đọc file: {str(e)}"
-        )
-    try:
-        result = parse_and_save_student_from_excel(
-            excel_bytes = exel_bytes,
-            session_id = session_obj.id,
-            created_by = current_user.id,
-            db = db
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code = 400,
-            detail=str(e)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Lỗi khi xử lý file: {str(e)}"
-        )
-
-    return {
-        "status": "success",
-        "message": f"Đã import {result['success']}/{result['total']} học sinh",
-        "data": {
-            "total": result['total'],
-            "success": result['success'],
-            "errors": result['errors'],
-            "students": result['students']
-        }
-    }
-
 
 @routers.post("/{exam_id}/share", summary="Chia sẻ quyền quản lý‌/Chấm bài cho giáo viên")
 def share_exam_to_teacher(
