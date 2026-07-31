@@ -3,18 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from 'sonner';
 import { LogIn, Loader2, User, Lock, Eye, EyeOff } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-
 import { authService } from "@/services/authService.js";
 
 export default function LoginPage() {
@@ -39,7 +27,7 @@ export default function LoginPage() {
       // ✅ Gọi login với username
       await authService.login(username, password);
       toast.success('Đăng nhập thành công!');
-      navigate('/dashboard');
+      navigate('/trang-chu');
     } catch (error) {
       // ✅ Sửa lỗi chính tả: response (không phải respones)
       const errorMsg = error.response?.data?.detail || 'Đăng nhập thất bại. Vui lòng kiểm tra lại!';

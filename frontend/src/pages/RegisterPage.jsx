@@ -3,18 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { UserPlus, Loader2, User, Mail, Lock, UserCircle } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-
 import { authService } from '@/services/authService';
 
 export default function RegisterPage() {
