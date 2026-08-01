@@ -4,6 +4,8 @@ import { Toaster } from 'sonner';
 
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import HomePage from './pages/HomePage';
+import ExamPage from './pages/Exam/index.jsx';
 
 export default function App() {
   return (
@@ -12,9 +14,11 @@ export default function App() {
       <Toaster position="top-right" richColors />
 
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/" element={<Navigate to="/trang-chu" replace />} />
+        <Route path="/trang-chu" element={<HomePage />} />
+          <Route path="/dang-nhap" element={<LoginPage />} />
+        <Route path="/dang-ky" element={<RegisterPage />} />
+          <Route path="/ky-thi" element={<ExamPage />} />
 
         {/* Dashboard tạm thời */}
         <Route
