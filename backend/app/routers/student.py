@@ -264,3 +264,17 @@ def delete_student(
         "status": "success",
         "message": f"Đã xóa thành công học sinh '{student_name}' (SBD: {student_code})"
     }
+
+@routers.delete("/sessions/{session_id}/students", summary="Xóa tất cả học sinh trong đợt thi")
+def clear_student_session(
+        session_id: str,
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user),
+):
+    check_session_permission(session_id, current_user.id, db, required_permission=ExamPermission.EDITOR)
+    deleted_count = db.query(Student).filter(Student.session_id == session_id).delete(synchronize_session=False)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"Đã xóa thành công toàn bộ {deleted_count} học sinh trong đợt thi này"
+    }

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database.connection import Base, engine
-from routers import auth, grading, exam, result, answer_keys
+from routers import auth, grading, exam, result, answer_keys, student
 
 Base.metadata.create_all(bind=engine)
 
@@ -25,6 +25,7 @@ app.include_router(exam.routers)
 app.include_router(grading.router)
 app.include_router(result.router)
 app.include_router(answer_keys.routers)
+app.include_router(student.routers)
 
 if __name__ == "__main__":
     import uvicorn

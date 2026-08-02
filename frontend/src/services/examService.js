@@ -14,8 +14,8 @@ export const examService = {
       .substring(0, 30);
 
     const response = await api.post('/api/v1/exams', {
-      exam_code: examCode,    // Bắt buộc
-      exam_name: examName,    // Bắt buộc
+      exam_code: examCode,
+      exam_name: examName,
     });
     return response.data;
   },
@@ -33,5 +33,10 @@ export const examService = {
   deleteExam: async (examId) => {
   const response = await api.delete(`/api/v1/exams/${examId}`);
   return response.data;
+  },
+
+  shareExam: async (examId, data) => {
+    const response = await api.post(`/api/v1/exams/${examId}/share`, data);
+    return response.data;
   },
 };
