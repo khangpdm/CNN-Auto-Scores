@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { FileText, Plus, HelpCircle, ChevronUp, ChevronDown } from 'lucide-react';
 
 export default function ExamHeader({
@@ -7,9 +8,17 @@ export default function ExamHeader({
   setIsModalOpen
 }) {
   return (
-    <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <div className="bg-white border-b border-gray-200">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 gap-4">
+        {/* Breadcrumb - GIỐNG EXAM DETAIL */}
+        <div className="flex items-center gap-2 text-sm text-gray-500 py-3">
+          <Link to="/" className="hover:text-[#43a047] transition-colors">Trang chủ</Link>
+          <span>/</span>
+          <span className="text-gray-800 font-medium">Kỳ thi</span>
+        </div>
+
+        {/* Header chính - GIỐNG EXAM DETAIL */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
               <FileText className="w-7 h-7 text-[#43a047]" />

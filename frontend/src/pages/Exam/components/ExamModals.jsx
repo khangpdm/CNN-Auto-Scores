@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { X, Plus, FileText, Loader2, Edit } from 'lucide-react';
 
-// Modal Tạo mới
 export function CreateExamModal({
   isModalOpen,
   setIsModalOpen,

@@ -38,7 +38,7 @@ export default function RegisterPage() {
       });
 
       toast.success('Đăng ký tài khoản thành công! Vui lòng đăng nhập.');
-      navigate('/login');
+      navigate('/dang-nhap');
     } catch (error) {
       const errorMsg =
         error.response?.data?.detail || 'Đăng ký thất bại. Email có thể đã được sử dụng!';
@@ -187,7 +187,7 @@ export default function RegisterPage() {
               <p className="text-center text-sm text-gray-600 pt-2">
                 Đã có tài khoản?{' '}
                 <Link
-                  to="/login"
+                  to="/dang-nhap"
                   className="text-[#43a047] font-semibold hover:text-[#2e7d32] hover:underline"
                 >
                   Đăng nhập ngay

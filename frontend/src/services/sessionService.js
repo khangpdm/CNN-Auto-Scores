@@ -7,7 +7,14 @@ export const sessionService = {
   },
 
   createSession: async (examId, data) => {
-    const response = await api.post(`/api/v1/exams/${examId}/sessions`, data);
+    const sessionName = data.name;
+    const sessionCode = sessionName.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 30);
+    const response = await api.post(`/api/v1/exams/${examId}/sessions`, {
+      session_code: sessionCode,
+      session_name: sessionName,
+      total_questions: 120,
+      max_score: 10,
+    });
     return response.data;
   },
 
