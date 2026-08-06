@@ -3,7 +3,7 @@ import { api } from '../api';
 export const studentService = {
   uploadStudents: async (sessionId, file) => {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file_excel', file);
 
     const response = await api.post(
         `/api/v1/session/${sessionId}/upload_students`,

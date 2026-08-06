@@ -10,3 +10,5 @@ uvicorn
 python-dotenv
 pandas
 pandas
+pydantic
+sqlalchemy
