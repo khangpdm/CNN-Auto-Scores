@@ -183,7 +183,7 @@ export default function SessionTable({
 
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <Link
-                        to={`/ky-thi/${examId}/${session.id}`}
+                        to={`/ky-thi/${examId}/session/${session.id}`}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-[#43a047] border border-[#43a047] rounded-lg hover:bg-[#43a047] hover:text-white transition-all text-sm"
                       >
                         <Eye className="w-4 h-4" />

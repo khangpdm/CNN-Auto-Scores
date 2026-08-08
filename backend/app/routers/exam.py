@@ -1,15 +1,13 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.coercions import expect
 from streamlit import status
 
 from database.connection import get_db
-from database.models import Exam, ExamStatus, AnswerKey, ExamStatus, SessionStatus, User, ExamSession, ExamShared, \
+from database.models import Exam, ExamStatus, SessionStatus, User, ExamSession, ExamShared, \
     ExamPermission
 from routers.auth import get_current_user
-from services.excel_service import parse_and_save_answer_to_db, parse_and_save_student_from_excel
 
 routers = APIRouter(prefix="/api/v1/exams", tags=["Exams & Sessions Management"])
 
@@ -65,42 +63,6 @@ def create_exam(
         "exam_id": new_exam.id,
         "message": "Tạo kỳ thi mới thành công",
     }
-@routers.post("/{exam_id}/sessions", summary="Tạo Đợt thi mới")
-def create_exam_session(
-        exam_id:int,
-        data: CreateSessionSchema,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user),
-):
-    existing = db.query(Exam).filter(
-        Exam.id == exam_id,
-    ).first()
-    if not existing:
-        raise HTTPException(status_code = 404, detail = "Kỳ thi không tồn tại")
-    existing_session = db.query(ExamSession).filter(
-        ExamSession.exam_id == exam_id,
-        ExamSession.session_code == data.session_code,
-    ).first()
-    if existing_session:
-        raise HTTPException(status_code= 400, detail=f"Đợt thi '{data.session_code}' đã tồn tại trong kỳ thi này")
-
-    new_session = ExamSession(
-        exam_id = exam_id,
-        session_code = data.session_code,
-        session_name = data.session_name,
-        total_questions = data.total_questions,
-        max_score = data.max_score,
-        status = SessionStatus.PENDING,
-        created_by = current_user.id,
-    )
-    db.add(new_session)
-    db.commit()
-    db.refresh(new_session)
-    return {
-        "status": "success",
-        "session_id": new_session.id,
-        "message": "Tạo đợt thi thành công"
-    }
 
 @routers.post("/{exam_id}/share", summary="Chia sẻ quyền quản lý‌/Chấm bài cho giáo viên")
 def share_exam_to_teacher(
@@ -149,6 +111,7 @@ def share_exam_to_teacher(
         "status": "success",
         "message": f"Đã chia sẻ kỳ thi thành công với quyền '{data.permission.value}' cho {target_teacher.full_name}"
     }
+
 @routers.get("", summary="Lấy danh sách các kỳ thi của tôi hoặc đuợc chia sẻ")
 def get_my_exams(
         db: Session = Depends(get_db),
@@ -200,27 +163,41 @@ def get_exam_detail(
         }
     }
 
-@routers.get("/{exam_id}/sessions", summary="Lấy danh sách các Đợt thi của kỳ thi này")
-def get_exam_session(
-        exam_id: int,
+@routers.post("/{exam_id}/sessions", summary="Tạo Đợt thi mới")
+def create_exam_session(
+        exam_id:int,
+        data: CreateSessionSchema,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user),
 ):
-    exam = db.query(Exam).filter(Exam.id == exam_id).first()
-    if not exam:
-        raise HTTPException(404, "Kỳ thi không tồn tại")
+    existing = db.query(Exam).filter(
+        Exam.id == exam_id,
+    ).first()
+    if not existing:
+        raise HTTPException(status_code = 404, detail = "Kỳ thi không tồn tại")
+    existing_session = db.query(ExamSession).filter(
+        ExamSession.exam_id == exam_id,
+        ExamSession.session_code == data.session_code,
+    ).first()
+    if existing_session:
+        raise HTTPException(status_code= 400, detail=f"Đợt thi '{data.session_code}' đã tồn tại trong kỳ thi này")
 
-    is_shared = db.query(ExamShared).filter(
-        ExamShared.exam_id == exam_id,
-        ExamShared.user_id == current_user.id
+    new_session = ExamSession(
+        exam_id = exam_id,
+        session_code = data.session_code,
+        session_name = data.session_name,
+        total_questions = data.total_questions,
+        max_score = data.max_score,
+        status = SessionStatus.PENDING,
+        created_by = current_user.id,
     )
-    if exam.created_by != current_user.id and not is_shared:
-        raise HTTPException(403, "Bạn không có quyền xem thông tin kỳ thi này")
-
-    sessions = db.query(ExamSession).filter(ExamSession.exam_id == exam_id).all()
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
     return {
         "status": "success",
-        "data": sessions
+        "session_id": new_session.id,
+        "message": "Tạo đợt thi thành công"
     }
 
 @routers.put("/{exam_id}", summary="Cập nhật tên/ mô tả kỳ thi")
@@ -276,6 +253,28 @@ def delete_exam(
         "message": f"Đã xóa thành công kỳ thi '{exam.exam_name}' và toàn bộ dữ liệu liên quan"
     }
 
+@routers.get("/{exam_id}/sessions", summary="Lấy danh sách các Đợt thi của kỳ thi này")
+def get_exam_session(
+        exam_id: int,
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user),
+):
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(404, "Kỳ thi không tồn tại")
+
+    is_shared = db.query(ExamShared).filter(
+        ExamShared.exam_id == exam_id,
+        ExamShared.user_id == current_user.id
+    )
+    if exam.created_by != current_user.id and not is_shared:
+        raise HTTPException(403, "Bạn không có quyền xem thông tin kỳ thi này")
+
+    sessions = db.query(ExamSession).filter(ExamSession.exam_id == exam_id).all()
+    return {
+        "status": "success",
+        "data": sessions
+    }
 
 @routers.put("/{exam_id}/sessions/{session_id}", summary="Cập nhật tên/thông tin đợt thi")
 def update_exam_session(
@@ -357,4 +356,34 @@ def delete_exam_session(
     return {
         "status": "success",
         "message": f"Đã xóa thành công đợt thi '{session_name}' và toàn bộ dữ liệu liên quan"
+    }
+
+@routers.get("/{exam_id}/sessions/{session_id}", summary="Lấy thông tin chi tiết 1 đợt thi")
+def get_exam_detail(
+        session_id: int,
+        exam_id: int,
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user),
+):
+    session = db.query(ExamSession).filter(ExamSession.id == session_id).first()
+    if not session:
+        raise HTTPException(404, "Đợt thi không tồn tại")
+
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+
+    is_shared = db.query(ExamShared).filter(
+        ExamShared.exam_id == exam_id,
+        ExamShared.user_id == current_user.id
+    ).first()
+
+    if session.created_by != current_user.id and not is_shared:
+        raise HTTPException(403, "Bạn không có quyền truy cập kỳ thi này")
+
+    return {
+        "status": "success",
+        "data": {
+            "session": session,
+            "exam_name": exam.exam_name if exam else None,
+            "role_context": "owner" if exam.created_by == current_user.id else is_shared.permission.value,
+        }
     }

@@ -32,7 +32,7 @@ export const studentService = {
   },
 
   deleteAllStudents: async (session_id) => {
-    const response = await api.delete(`/sessions/${session_id}/students`);
+    const response = await api.delete(`/api/v1/sessions/${session_id}/students`);
     return response.data;
   },
 }

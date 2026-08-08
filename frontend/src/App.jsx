@@ -6,8 +6,9 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import HomePage from './pages/HomePage';
 import ExamPage from './pages/Exam/index.jsx';
-import SessionPage from './pages/Session/index.jsx';
+import SessionPage from './pages/Session/index';
 import AppLayout from "@/components/layout/AppLayout.jsx";
+import GradingPage from './pages/Grading/index';
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route element={<AppLayout/>}>
             <Route path="/ky-thi" element={<ExamPage />} />
             <Route path="/ky-thi/:id" element={<SessionPage />} />
+            <Route path="/ky-thi/:examId/session/:sessionId" element={<GradingPage />} />
         </Route>
       </Routes>
     </>

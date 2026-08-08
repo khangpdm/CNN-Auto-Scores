@@ -10,14 +10,14 @@ export default function ExamHeader({
   return (
     <div className="bg-white border-b border-gray-200">
       <div className="container mx-auto px-4">
-        {/* Breadcrumb - GIỐNG EXAM DETAIL */}
+        {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-500 py-3">
           <Link to="/" className="hover:text-[#43a047] transition-colors">Trang chủ</Link>
           <span>/</span>
           <span className="text-gray-800 font-medium">Kỳ thi</span>
         </div>
 
-        {/* Header chính - GIỐNG EXAM DETAIL */}
+        {/* Header chính */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">

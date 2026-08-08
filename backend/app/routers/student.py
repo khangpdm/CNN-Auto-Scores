@@ -139,7 +139,7 @@ def get_students_by_session(
     offset = (page - 1) * page_size
     students = query.order_by(Student.student_code.asc()).offset(offset).limit(page_size).all()
 
-    total_pages = (total_records + page_size - 1) / page_size if total_records > 0 else 0
+    total_pages = (total_records + page_size - 1) // page_size if total_records > 0 else 0
 
     return {
         "status": "success",

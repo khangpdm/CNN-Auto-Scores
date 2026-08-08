@@ -40,4 +40,9 @@ export const sessionService = {
     });
     return response.data;
   },
+
+  getSessionDetail: async (examId, sessionId) => {
+    const response = await api.get(`/api/v1/exams/${examId}/sessions/${sessionId}`);
+    return response.data;
+  }
 };
