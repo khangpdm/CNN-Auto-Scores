@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import { Users, Upload, Trash2, Search, X, Loader2, Download, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
+import { ImportStudentModal } from './GradingModals';
 
 export default function StudentsTab({
   sessionId,
@@ -13,10 +14,8 @@ export default function StudentsTab({
   onDeleteAll,
 }) {
     const [searchTerm, setSearchTerm] = useState('');
-    const [isUploading, setIsUploading] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
-    const [selectedFile, setSelectedFile] = useState(null);
 
     const handleSearch = (e) => {
       e.preventDefault();
@@ -27,43 +26,6 @@ export default function StudentsTab({
       setSearchTerm('');
       onSearch('');
     };
-
-    const handleFileChange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const validTypes = [
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel'
-      ];
-      if (!validTypes.includes(file.type) &&
-      !file.name.endsWith('.xlsx') &&
-      !file.name.endsWith('.xls')) {
-        toast.error('Vui lòng chọn file Excel (.xlsx hoặc .xls)');
-        e.target.value = '';
-        return;
-      }
-      setSelectedFile(file);
-    };
-
-    const handleImport = async () => {
-      if (!selectedFile) {
-        toast.error('Vui lòng chọn file để import!');
-        return;
-      }
-
-      setIsUploading(true);
-      try {
-        await onUpload(selectedFile);
-        setShowImportModal(false);
-        setSelectedFile(null);
-        toast.success('Import học sinh thành công!');
-      } catch (error) {
-
-      } finally {
-        setIsUploading(false);
-      }
-    }
 
     const handleDelete = async (studentId) => {
       if (!window.confirm('Bạn có chắc muốn xóa học sinh này?')) return;
@@ -287,120 +249,12 @@ export default function StudentsTab({
         </>
       )}
 
-      {/* ===== MODAL IMPORT ===== */}
-      {showImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <Upload className="w-5 h-5 text-[#43a047]" />
-                Import danh sách học sinh
-              </h2>
-              <button
-                onClick={() => {
-                  setShowImportModal(false);
-                  setSelectedFile(null);
-                }}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {/* Hướng dẫn */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-700 font-medium">📌 Hướng dẫn:</p>
-                <ul className="text-sm text-blue-600 mt-2 space-y-1 list-disc pl-5">
-                  <li>Tải mẫu file import để biết định dạng</li>
-                  <li>File import phải là định dạng .xlsx hoặc .xls</li>
-                  <li>Các cột bắt buộc: SBD, Họ và tên</li>
-                  <li>Dữ liệu trùng sẽ được bỏ qua</li>
-                </ul>
-              </div>
-
-              {/* Tải mẫu */}
-              <button
-                onClick={downloadTemplate}
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                Tải mẫu file import
-              </button>
-
-              {/* Chọn file */}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#43a047] transition-colors">
-                {selectedFile ? (
-                  <div className="flex items-center justify-center gap-3">
-                    <FileSpreadsheet className="w-8 h-8 text-[#43a047]" />
-                    <div className="text-left">
-                      <p className="font-medium text-gray-800">{selectedFile.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {(selectedFile.size / 1024).toFixed(1)} KB
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setSelectedFile(null)}
-                      className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5 text-gray-400" />
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <Upload className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                    <p className="text-gray-500">Kéo thả file vào đây hoặc</p>
-                    <label className="cursor-pointer">
-                      <span className="text-[#43a047] font-medium hover:underline">
-                        chọn file từ máy tính
-                      </span>
-                      <input
-                        type="file"
-                        accept=".xlsx,.xls"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                    </label>
-                    <p className="text-xs text-gray-400 mt-2">
-                      Hỗ trợ: .xlsx, .xls
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Nút action */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button
-                  onClick={() => {
-                    setShowImportModal(false);
-                    setSelectedFile(null);
-                  }}
-                  className="px-4 py-2.5 text-gray-600 font-medium rounded-lg hover:bg-gray-100"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleImport}
-                  disabled={!selectedFile || isUploading}
-                  className="px-4 py-2.5 text-white font-semibold bg-[#43a047] rounded-lg hover:bg-[#2e7d32] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Đang import...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      Import
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ImportStudentModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onUpload={onUpload}
+        downloadTemplate={downloadTemplate}
+      />
     </div>
   );
 }

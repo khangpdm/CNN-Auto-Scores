@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 
 import StudentsTab from './components/StudentsTab';
-import GradingTab from './components/GradingHeader';
-// import AnswerKeyTab from './components/AnswerKeyTab';
+import GradingHeader from './components/GradingHeader';
+import AnswerKeyTab from './components/AnswerKeyTab';
 // import PaperUploadTab from './components/PaperUploadTab';
 // import GradingTab from './components/GradingTab';
 
@@ -103,17 +103,17 @@ export default function SessionDetailPage() {
                       onDeleteAll={deleteAllStudents}
                     />
                 );
-            // case 'answer-key':
-            //     return (
-            //         <AnswerKeyTab
-            //             sessionId={sessionId}
-            //             answerKeys={answerKeys}
-            //             setAnswerKeys={setAnswerKeys}
-            //             loading={answerKeysLoading}
-            //             setLoading={answerKeysLoading}
-            //             fetchAnswerKeys={fetchAnswerKeys}
-            //         />
-            //     );
+            case 'answer-key':
+                return (
+                    <AnswerKeyTab
+                        sessionId={sessionId}
+                        answerKeys={answerKeys}
+                        loading={answerKeysLoading}
+                        onUpload={uploadAnswerKey}
+                        onDelete={deleteAnswerKey}
+                        onRefresh={fetchAnswerKeys}
+                    />
+                );
             // case 'papers':
             //     return (
             //         <PaperUploadTab
@@ -177,7 +177,7 @@ export default function SessionDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-6">
-        <GradingTab
+        <GradingHeader
         session = {session}
         totalStudents = {studentsPagination?.total_records}
         totalGraded = {0}
