@@ -1,9 +1,13 @@
 import { api } from '../api';
 
 export const gradingService = {
-    scanPapers: async (sessionId, files, isZip = false) => {
+    scanPapers: async (sessionId, files) => {
         const formData = new FormData();
-        formData.append('files',files);
+        const fileList = Array.isArray(files) ? files : [files];
+
+        fileList.forEach((file) => {
+            formData.append('files', file);
+        });
 
         const response = await api.post(`/api/v1/grading/sessions/${sessionId}/scan`,
             formData,

@@ -1,5 +1,8 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from database.connection import Base, engine
 from routers import auth, grading, exam, result, answer_keys, student
@@ -11,6 +14,14 @@ app = FastAPI(
     description="Hệ thống API chấm điểm thi trắc nghiệm AI",
     version = "3.0.0",
 )
+
+STORAGE_DIR = "storage"
+os.makedirs(os.path.join(STORAGE_DIR, "uploads"), exist_ok=True)
+os.makedirs(os.path.join(STORAGE_DIR, "processed"), exist_ok=True)
+
+app.mount("/static", StaticFiles(directory=STORAGE_DIR), name="static")
+
+app.mount("/storage", StaticFiles(directory=STORAGE_DIR), name="storage")
 
 app.add_middleware(
     CORSMiddleware,

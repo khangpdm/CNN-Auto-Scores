@@ -11,6 +11,17 @@ from services.process_ans import find_answer_blocks, process_ans_blocks, process
 from services.process_id import process_id
 from services.process_img import warp_process
 
+BASE_URL = "http://localhost:8000"
+
+def build_full_url(path: Optional[str]) -> Optional[str]:
+    if not path:
+        return None
+    if path.startswith("http://") or path.startswith("https://"):
+        return path
+
+    # Chuẩn hóa đường dẫn: loại bỏ dấu / ở đầu để không bị thừa khi ghép link
+    clean_path = path.lstrip("/")
+    return f"{BASE_URL}/{clean_path}"
 
 def get_result_detail(
         result_id: int,
@@ -40,7 +51,8 @@ def get_result_detail(
 
     return {
         "result_id": result_id,
-        "image_url": result.processed_image_path or result.raw_image_path,
+        "raw_url": result.raw_image_path,
+        "image_url": result.processed_image_path,
         "student_code": result.student_code,
         "student_name": student.full_name if student else None,
         "test_code": result.detected_test_code,
@@ -284,9 +296,13 @@ def get_result_list(
         else:
             warning_count += 1
 
+        raw_path = r.raw_image_path
+        image_path = r.processed_image_path or r.raw_image_path
+
         item = {
             "result_id": r.id,  # Luôn có ID vì bài lỗi cũng đã có record Draft
-            "image_url": r.processed_image_path or r.raw_image_path,
+            "raw_url": build_full_url(raw_path),
+            "image_url": build_full_url(image_path),
             "student_code": r.student_code,
             "student_name": student.full_name if student else None,
             "test_code": r.detected_test_code,
