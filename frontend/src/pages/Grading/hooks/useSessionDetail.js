@@ -108,9 +108,14 @@ export function useSessionDetail() {
         page: page,
         page_size: 50,
       });
-      const data = response.data || response;
-      setResults(data.data || []);
-      setResultsPagination(data.pagination || null);
+      const responseData = response.data || response;
+      setResults(responseData.items || []);
+      setResultsPagination({
+        current_page: page,
+        page_size: 50,
+        total_records: responseData.items.length,
+        total_pages: Math.ceil(responseData.items.length / 50) || 1,
+      });
     } catch (error) {
       console.error('Lỗi lấy kết quả:', error);
       toast.error('Không thể tải kết quả chấm!');
@@ -119,7 +124,6 @@ export function useSessionDetail() {
     }
   }, [sessionId]);
 
-  // Các hàm Action giữ nguyên
   const deleteStudent = useCallback(async (studentId) => {
     try {
       await studentService.deleteStudent(studentId);
@@ -204,23 +208,41 @@ export function useSessionDetail() {
     return () => clearInterval(interval);
   }, [fetchResults]);
 
-  const scanPapers = useCallback(async (files, isZip = false) => {
-    if (!files || files.length === 0) return toast.error('Vui lòng chọn file!');
+const scanPapers = useCallback(async (files) => {
+    if (!files || files.length === 0) {
+      toast.error('Vui lòng chọn file!');
+      return;
+    }
+
     try {
       setIsScanning(true);
-      const response = await gradingService.scanPapers(sessionId, files, isZip);
+      const response = await gradingService.scanPapers(sessionId, files);
       const data = response.data || response;
 
-      if (data.batch_id) {
-        setScanBatchId(data.batchId);
+      const batchId = data.batch_id || data.batchId;
+
+      if (batchId) {
+        setScanBatchId(batchId);
         toast.success('Đã gửi bài làm đi xử lý!');
-        pollScanStatus(data.batch_id);
+        pollScanStatus(batchId);
       } else {
-        toast.success('Xử lý bài làm thành công');
+        toast.success('Xử lý bài làm thành công!');
         await fetchResults();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Không thể xử lý bài làm!');
+      console.error('Lỗi scan papers:', error);
+
+      if (error.response?.status === 422) {
+        const details = error.response?.data?.detail;
+        if (Array.isArray(details)) {
+          const errMessage = details.map(err => `${err.loc.join('->')}: ${err.msg}`).join(', ');
+          toast.error(`Lỗi định dạng dữ liệu (422): ${errMessage}`);
+        } else {
+          toast.error('Dữ liệu gửi lên không khớp với yêu cầu của Server!');
+        }
+      } else {
+        toast.error(error.response?.data?.message || 'Không thể xử lý bài làm!');
+      }
     } finally {
       setIsScanning(false);
     }
@@ -295,27 +317,46 @@ export function useSessionDetail() {
 
   // Gọi Session 1 lần duy nhất
   useEffect(() => {
-    if (sessionId && !fetchedRef.current.session) {
-      fetchedRef.current.session = true;
-      fetchSession();
-    }
-  }, [sessionId, fetchSession]);
+      fetchedRef.current = {
+        session: false,
+        students: false,
+        answerKeys: false,
+        results: false,
+      };
+    }, [sessionId]);
 
-  // Chuyển Tab nào -> Gọi tab đó đúng 1 lần duy nhất
-  useEffect(() => {
-    if (!sessionId) return;
+    // 1. Tải các dữ liệu nền tảng ngay khi vào sessionId (Session, Học sinh, Đáp án)
+    useEffect(() => {
+      if (!sessionId) return;
 
-    if (activeTab === 'students' && !fetchedRef.current.students) {
-      fetchedRef.current.students = true;
-      fetchStudents();
-    } else if (activeTab === 'answer-key' && !fetchedRef.current.answerKeys) {
-      fetchedRef.current.answerKeys = true;
-      fetchAnswerKeys();
-    } else if (activeTab === 'grading' && !fetchedRef.current.results) {
-      fetchedRef.current.results = true;
-      fetchResults();
-    }
-  }, [activeTab, sessionId, fetchStudents, fetchAnswerKeys, fetchResults]);
+      // Tải Session
+      if (!fetchedRef.current.session) {
+        fetchedRef.current.session = true;
+        fetchSession();
+      }
+
+      // Tải Học Sinh (Tự động tải để lấy Badge số lượng + Dữ liệu chấm)
+      if (!fetchedRef.current.students) {
+        fetchedRef.current.students = true;
+        fetchStudents();
+      }
+
+      // Tải Đáp Án (Tự động tải ngầm để Tab Chấm điểm có ngay Mã đề để dò)
+      if (!fetchedRef.current.answerKeys) {
+        fetchedRef.current.answerKeys = true;
+        fetchAnswerKeys();
+      }
+    }, [sessionId, fetchSession, fetchStudents, fetchAnswerKeys]);
+
+    // 2. Riêng Kết Quả Chấm (Results) chỉ tải khi người dùng bấm sang Tab 'grading'
+    useEffect(() => {
+      if (!sessionId) return;
+
+      if (activeTab === 'grading' && !fetchedRef.current.results) {
+        fetchedRef.current.results = true;
+        fetchResults();
+      }
+    }, [activeTab, sessionId, fetchResults]);
 
   return {
     session,

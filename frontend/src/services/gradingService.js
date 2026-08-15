@@ -35,17 +35,17 @@ export const gradingService = {
     },
 
     updateResult: async (resultId, data) => {
-        const response = await api.put(`/api/v1/results/${resultId}`,data);
+        const response = await api.put(`/api/v1/result/${resultId}`,data);
         return response.data;
     },
 
     deleteResult: async (resultId) => {
-        const response = await api.put(`/api/v1/results/${resultId}`);
+        const response = await api.delete(`/api/v1/results/${resultId}`);
         return response.data;
     },
 
     clearAllResults: async (sessionId) => {
-        const response = await api.put(`/api/v1/sessions/${sessionId}/results/clear`);
+        const response = await api.delete(`/api/v1/sessions/${sessionId}/results/clear`);
         return response.data;
     },
 
