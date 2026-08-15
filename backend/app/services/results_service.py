@@ -119,7 +119,6 @@ def manual_edit_result(
         if os.path.exists(source_raw_path):
             try:
                 print(f"Tìm thấy ảnh gốc, bắt đầu tái tạo tọa độ...")
-                # --- ĐÃ XOÁ BỎ DÒNG READ ẢNH DƯ THỪA TẠI ĐÂY ---
                 warped_img = warp_process(source_raw_path)
 
                 # A. Quét tọa độ của vùng Đáp án trắc nghiệm
@@ -127,7 +126,6 @@ def manual_edit_result(
                 list_ans = process_ans_blocks(ans_blocks_data)
                 list_choices = process_list_ans(list_ans)
 
-                # --- ĐÃ BỔ SUNG DÒNG QUAN TRỌNG BỊ THIẾU TẠI ĐÂY ---
                 ai_detected_results = get_answers(list_choices, threshold=0.8)
 
                 # B. Quét tọa độ của vùng SBD và Mã đề từ file bạn vừa gửi
@@ -180,33 +178,48 @@ def manual_edit_result(
     updated_answers = {}
     current_answers = result.answers or {}
 
-    for q_idx in range(1, total_q + 1):
+    all_q_keys = set(current_answers.keys()) | set(ai_detected_results.keys())
+    max_questions = max([int(k) for k in all_q_keys if str(k).isdigit()] + [104])
+
+    for q_idx in range(1, max_questions + 1):
         str_q = str(q_idx)
-        # --- ĐÃ XOÁ BỎ BIẾN INT_Q DƯ THỪA TẠI ĐÂY ---
 
-        if str_q in manual_answers:
-            student_ans = manual_answers[str_q]
+        if str_q in manual_answers or q_idx in manual_answers:
+            student_ans = manual_answers.get(str_q, manual_answers.get(q_idx))
+        elif str_q in current_answers:
+            student_ans = current_answers[str_q].get("choice")
         else:
-            student_ans = current_answers.get(str_q, {}).get("choice")
+            student_ans = ai_detected_results.get(q_idx, {}).get("answer")
 
-        correct_ans = correct_map.get(q_idx)
-        is_correct = (student_ans == correct_ans) if correct_ans else False
-        q_score = float(score_map.get(str_q, default_score))
+        ai_q_data = ai_detected_results.get(q_idx, {})
+        valid_geometry = ai_q_data.get("geometry") or current_answers.get(str_q, {}).get("geometry", {})
 
-        if is_correct:
-            correct_count += 1
-            total_score += q_score
+        # Tiến hành chấm điểm nếu câu nằm trong phạm vi mã đề
+        if q_idx <= total_q:
+            correct_ans = correct_map.get(q_idx)
+            is_correct = (student_ans == correct_ans) if (student_ans and correct_ans) else False
+            q_score = float(score_map.get(str_q, score_map.get(q_idx, default_score)))
 
-        ai_q_data = ai_detected_results.get(q_idx, {})  # Thay int_q bằng q_idx trực tiếp
-        valid_geometry = ai_q_data.get("geometry", {})
+            if is_correct:
+                correct_count += 1
+                total_score += q_score
+
+            earned_score = q_score if is_correct else 0.0
+            max_score = q_score
+        else:
+            # Câu ngoài phạm vi mã đề -> Giữ lại geometry nhưng không tính điểm
+            correct_ans = None
+            is_correct = False
+            earned_score = 0.0
+            max_score = 0.0
 
         updated_answers[str_q] = {
             "choice": student_ans,
             "answer": student_ans,
             "is_correct": is_correct,
             "correct_answer": correct_ans,
-            "earned_score": q_score if is_correct else 0.0,
-            "max_score": q_score,
+            "earned_score": earned_score,
+            "max_score": max_score,
             "geometry": valid_geometry
         }
 
