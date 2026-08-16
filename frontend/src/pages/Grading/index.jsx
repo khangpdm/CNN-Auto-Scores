@@ -10,8 +10,8 @@ import {
 import StudentsTab from './components/StudentsTab';
 import GradingHeader from './components/GradingHeader';
 import AnswerKeyTab from './components/AnswerKeyTab';
-// import PaperUploadTab from './components/PaperUploadTab';
-// import GradingTab from './components/GradingTab';
+import PaperUploadTab from './components/PaperUploadTab';
+import GradingTab from './components/GradingTab';
 
 export default function SessionDetailPage() {
     const { examId, sessionId } = useParams();
@@ -114,34 +114,39 @@ export default function SessionDetailPage() {
                         onRefresh={fetchAnswerKeys}
                     />
                 );
-            // case 'papers':
-            //     return (
-            //         <PaperUploadTab
-            //             sessionId={sessionId}
-            //             papers={papers}
-            //             setPapers={setPapers}
-            //             loading={papersLoading}
-            //             setLoading={setPapersLoading}
-            //             scanBatchId={scanBatchId}
-            //             setScanBatchId={setScanBatchId}
-            //             scanStatus={scanStatus}
-            //             setScanStatus={setScanStatus}
-            //             fetchPapers={fetchPapers}
-            //         />
-            //     );
-            // case 'grading':
-            //     return (
-            //         <GradingTab
-            //             sessionId={sessionId}
-            //             results={results}
-            //             setResults={setResults}
-            //             loading={resultsLoading}
-            //             setLoading={setResultsLoading}
-            //             pagination={resultsPagination}
-            //             setPagination={setResultsPagination}
-            //             fetchResults={fetchResults}
-            //         />
-            //     );
+            case 'papers':
+                return (
+                    <PaperUploadTab
+                      sessionId={sessionId}
+                      papers={papers}
+                      loading={papersLoading}
+                      scanBatchId={scanBatchId}
+                      scanStatus={scanStatus}
+                      isScanning={isScanning}
+                      onScan={scanPapers}
+                      onRefresh={() => {
+                        // Gọi hàm refresh lại dữ liệu papers / results tương ứng
+                      }}
+                    />
+                );
+            case 'grading':
+                return (
+                  <GradingTab
+                    sessionId={sessionId}
+                    results={results}
+                    loading={resultsLoading}
+                    pagination={resultsPagination}
+                    students={students}
+                    answerKeys={answerKeys}
+                    onSearch={fetchResults}
+                    onUpdate={updateResult}
+                    onDelete={deleteResult}
+                    onClearAll={clearAllResults}
+                    // onExport={}
+                    onRefresh={fetchResults}
+                    // onReGrade={}
+                  />
+                );
             default:
                 return null;
         }
