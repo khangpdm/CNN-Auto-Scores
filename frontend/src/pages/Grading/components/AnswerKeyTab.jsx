@@ -5,7 +5,7 @@ import {
     X, FileSpreadsheet, Trash2, Edit3
 } from "lucide-react";
 
-import {ImportAnswerModal} from "@/pages/Grading/components/GradingModals.jsx";
+import {ConfirmDeleteModal, ImportAnswerModal} from "@/pages/Grading/components/GradingModals.jsx";
 
 export default function AnswerKeyTab({
     sessionId,
@@ -17,6 +17,13 @@ export default function AnswerKeyTab({
 }) {
     const [selectedKeyId, setSelectedKeyId] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const [deleteModal, setDeleteModal] = useState({
+        isOpen: false,
+        answer: null,
+        isDanger: false,
+        isDeleting: false,
+    });
 
     useEffect(() => {
         if (answerKeys.length > 0){
@@ -32,15 +39,36 @@ export default function AnswerKeyTab({
     const currentKey = answerKeys.find(k => k.id === selectedKeyId) || answerKeys[0];
     const answerEntries = currentKey?.answers ? Object.entries(currentKey.answers) : [];
 
-    const handleDeleteCurrentKey = async () => {
-        if (!currentKey) return;
-        if (!window.confirm(`Bạn có chắc muốn xóa đáp án của mã đề "${currentKey.test_code}"?`)) return;
+    const handleDeleteClick = (answer) => {
+        setDeleteModal({
+            isOpen: true,
+            answer: answer,
+            isDanger: false,
+            isDeleting: false,
+        });
+    };
 
-        try{
-            await onDelete(currentKey.id);
-        } catch (error) {
+    const handleDeleteConfirm = async () => {
+        if (!deleteModal.answer) return;
 
+        setDeleteModal(prev => ({ ...prev, isDeleting: true }));
+        try {
+            await onDelete(deleteModal.answer.id);
+            setDeleteModal({
+                isOpen: false,
+                answer: null,
+                isDanger: false,
+                isDeleting: false,
+            });
+        } catch (error){
+
+        } finally {
+            setDeleteModal(prev => ({ ...prev, isDeleting: false }));
         }
+    };
+
+    const handleDeleteCancel = () => {
+        setDeleteModal({isOpen: false, student: null, isDanger: false, isDeleting: false });
     };
 
   return (
@@ -131,7 +159,7 @@ export default function AnswerKeyTab({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 pb-4 mb-4 gap-3">
               <div>
                 <h4 className="text-lg font-bold text-gray-800">
-                  Đáp án chi tiết - Mã đề: <span className="text-[#43a047]">{currentKey?.code}</span>
+                  Đáp án chi tiết - Mã đề: <span className="text-[#43a047]">{currentKey?.test_code}</span>
                 </h4>
                 <p className="text-xs text-gray-500 mt-0.5">
                   Tổng số: {currentKey?.total_questions || answerEntries.length} câu trắc nghiệm
@@ -147,7 +175,7 @@ export default function AnswerKeyTab({
                   Chỉnh sửa
                 </button>
                 <button
-                  onClick={handleDeleteCurrentKey}
+                  onClick={() => handleDeleteClick(currentKey)}
                   className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -180,12 +208,24 @@ export default function AnswerKeyTab({
         </div>
       )}
 
-        <ImportAnswerModal
-            isOpen={isModalOpen}
-            onClose={() => setIsModalOpen(false)}
-            onUpload={onUpload}
-            onSuccess={onRefresh}
-        />
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title={"Xác nhận xóa"}
+        description={
+          `Bạn có chắc chắn muốn xóa mã đề "${deleteModal.answer?.test_code || 'chưa có tên'}"?`
+        }
+        confirmText={"Xóa"}
+        isDanger={deleteModal.isDanger}
+      />
+
+    <ImportAnswerModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onUpload={onUpload}
+        onSuccess={onRefresh}
+    />
     </div>
   );
 }

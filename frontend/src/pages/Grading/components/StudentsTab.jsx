@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import { Users, Upload, Trash2, Search, X, Loader2, Download, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
-import { ImportStudentModal } from './GradingModals';
+import { ImportStudentModal, ConfirmDeleteModal } from './GradingModals';
 
 export default function StudentsTab({
   sessionId,
@@ -17,6 +17,13 @@ export default function StudentsTab({
     const [isDeleting, setIsDeleting] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
 
+    const [deleteModal, setDeleteModal] = useState({
+        isOpen: false,
+        student: null,
+        isDanger: false,
+        isDeleting: false,
+    });
+
     const handleSearch = (e) => {
       e.preventDefault();
       onSearch(searchTerm);
@@ -27,19 +34,67 @@ export default function StudentsTab({
       onSearch('');
     };
 
-    const handleDelete = async (studentId) => {
-      if (!window.confirm('Bạn có chắc muốn xóa học sinh này?')) return;
-      await onDelete(studentId);
+    const handleDeleteClick = (student) => {
+        setDeleteModal({
+            isOpen: true,
+            student: student,
+            isDanger: false,
+            isDeleting: false,
+        });
     };
 
-    const handleDeleteAll = async () => {
-      if (!window.confirm('Bạn có chắc muốn xóa TẤT CẢ học sinh?')) return;
-      setIsDeleting(true);
-      try {
-        await onDeleteAll();
-      } finally {
-        setIsDeleting(false);
-      }
+    const handleDeleteConfirm = async () => {
+        if (!deleteModal.student) return;
+
+        setDeleteModal(prev => ({...prev, isDeleting: true}));
+        try {
+            await onDelete(deleteModal.student.id);
+            setDeleteModal({
+                isOpen:false,
+                student: null,
+                isDanger: false,
+                isDeleting: false
+            });
+        } catch (errror) {
+
+        } finally {
+            setDeleteModal(prev => ({...prev, isDeleting: false}));
+        }
+    };
+
+    const handleDeleteCancel = () => {
+        setDeleteModal({isOpen: false, student: null, isDanger: false, isDeleting: false });
+    };
+
+    const handleDeleteAllClick = () => {
+        if (students.length === 0) {
+            toast.warning('Không có học sinh nào để xóa!');
+            return;
+        }
+
+        setDeleteModal({
+            isOpen: true,
+            student: null,
+            isDanger: true,
+            isDeleting: false,
+        });
+    };
+
+    const handleDeleteAllConfirm = async () => {
+        setDeleteModal(prev => ({...prev, isDeleting: true}));
+        try {
+            await onDeleteAll();
+            setDeleteModal({
+                isOpen: false,
+                student: null,
+                isDanger: false,
+                isDeleting: false,
+            });
+        } catch (error) {
+
+        } finally {
+            setDeleteModal(prev => ({...prev, isDeleting: false}));
+        }
     };
 
     const downloadTemplate = () => {
@@ -93,7 +148,7 @@ export default function StudentsTab({
             Import Excel
           </button>
           <button
-            onClick={handleDeleteAll}
+            onClick={handleDeleteAllClick}
             disabled={isDeleting || students.length === 0}
             className="flex items-center gap-2 px-3 py-2 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
           >
@@ -205,7 +260,7 @@ export default function StudentsTab({
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
-                          onClick={() => handleDelete(student.id)}
+                          onClick={() => handleDeleteClick(student)}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Xóa học sinh"
                         >
@@ -248,6 +303,20 @@ export default function StudentsTab({
           )}
         </>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={deleteModal.isDanger ? handleDeleteAllConfirm : handleDeleteConfirm}
+        title={deleteModal.isDanger ? "Xóa tất cả học sinh" : "Xác nhận xóa"}
+        description={
+          deleteModal.isDanger
+            ? "Bạn có chắc chắn muốn xóa TẤT CẢ học sinh trong danh sách? Hành động này không thể hoàn tác!"
+            : `Bạn có chắc chắn muốn xóa học sinh "${deleteModal.student?.full_name || 'chưa có tên'}" (SBD: ${deleteModal.student?.student_code || '---'})?`
+        }
+        confirmText={deleteModal.isDanger ? "Xóa tất cả" : "Xóa"}
+        isDanger={deleteModal.isDanger}
+      />
 
       <ImportStudentModal
         isOpen={showImportModal}

@@ -1,9 +1,11 @@
-import React from 'react';
+import React, {useState} from 'react';
 import { Link } from 'react-router-dom';
 import {
   FileText, Eye, Edit, Trash2, Copy, Plus, Loader2,
   ChevronLeft, ChevronRight, Clock, CheckCircle
 } from 'lucide-react';
+
+import {ConfirmDeleteModal} from "@/pages/Exam/components/ExamModals";
 
 const statusConfig = {
   draft: {
@@ -73,6 +75,49 @@ export default function ExamTable({
   handleOpenEditModal,
   handleDeleteExam,
 }) {
+  const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
+    examId: null,
+    examName: '',
+    isDeleting: false,
+  });
+
+    const handleDeleteClick = (examId, examName) => {
+    setDeleteModal({
+      isOpen: true,
+      examId: examId,
+      examName: examName || 'Chưa có tên',
+      isDeleting: false,
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal.examId) return;
+
+    setDeleteModal(prev => ({ ...prev, isDeleting: true }));
+    try {
+      await handleDeleteExam(deleteModal.examId, deleteModal.examName);
+      setDeleteModal({
+        isOpen: false,
+        examId: null,
+        examName: '',
+        isDeleting: false,
+      });
+    } catch (error) {
+      console.error('Lỗi xóa kỳ thi:', error);
+      setDeleteModal(prev => ({ ...prev, isDeleting: false }));
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModal({
+      isOpen: false,
+      examId: null,
+      examName: '',
+      isDeleting: false,
+    });
+  };
+
   if (loading) {
     return (
       <div className="px-6 py-12 text-center text-gray-500">
@@ -172,7 +217,7 @@ export default function ExamTable({
                       <Copy className="w-4.5 h-4.5" />
                     </button>
                     <button
-                      onClick={() => handleDeleteExam(exam.id, exam.exam_name || exam.name)}
+                      onClick={() => handleDeleteClick(exam.id, exam.exam_name || exam.name)}
                       className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                       title="Xóa"
                     >
@@ -222,6 +267,19 @@ export default function ExamTable({
           </div>
         </div>
       )}
+
+      {/* ===== CONFIRM DELETE MODAL ===== */}
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Xác nhận xóa kỳ thi"
+        description="Bạn có chắc chắn muốn xóa kỳ thi này?"
+        confirmText="Xóa kỳ thi"
+        isDeleting={deleteModal.isDeleting}
+        isDanger={true}
+        itemName={deleteModal.examName}
+      />
     </>
   );
 }

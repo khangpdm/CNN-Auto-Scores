@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { X, Plus, FileText, Loader2, Edit } from 'lucide-react';
+import {X, Plus, FileText, Loader2, Edit, Trash2} from 'lucide-react';
 
 export function CreateExamModal({
   isModalOpen,
@@ -245,3 +245,97 @@ export function EditExamModal({
     </div>
   );
 }
+
+export function ConfirmDeleteModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title = "Xác nhận xóa",
+  description = "Bạn có chắc chắn muốn xóa không?",
+  confirmText = "Xóa",
+  isDeleting = false,
+  isDanger = false,
+  itemName = "",
+}){
+  // ESC key handler
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={handleOverlayClick}
+    >
+      <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 ${isDanger ? 'border-t-4 border-red-600' : ''}`}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className={`text-xl font-bold ${isDanger ? 'text-red-600' : 'text-gray-800'}`}>
+            {title}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            {description}
+            {itemName && (
+              <strong className="block mt-1 text-gray-800">"{itemName}"</strong>
+            )}
+          </p>
+          {isDanger && (
+            <p className="text-sm text-red-500">
+              ⚠️ Hành động này không thể hoàn tác và sẽ xóa tất cả dữ liệu liên quan!
+            </p>
+          )}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <button
+              onClick={onClose}
+              className="px-4 py-2.5 text-gray-600 font-medium rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={isDeleting}
+              className={`px-4 py-2.5 text-white font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center gap-2 ${
+                isDanger 
+                  ? 'bg-red-600 hover:bg-red-700' 
+                  : 'bg-red-500 hover:bg-red-600'
+              }`}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Đang xóa...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  {confirmText}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
