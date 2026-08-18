@@ -71,6 +71,15 @@ export default function AnswerKeyTab({
         setDeleteModal({isOpen: false, student: null, isDanger: false, isDeleting: false });
     };
 
+    const downloadTemplate = () => {
+      const link = document.createElement('a');
+      link.href = '../../public/dap_an.xlsx';
+      link.download = 'ds_thi_sinh.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
   return (
     <div className="space-y-6">
       {/* Top Action Bar */}
@@ -86,12 +95,19 @@ export default function AnswerKeyTab({
         </div>
 
         <div className="flex items-center gap-3">
+            <button
+              onClick={downloadTemplate}
+              className="flex items-center gap-2 px-4 py-2 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Tải mẫu
+            </button>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#43a047] hover:bg-[#388e3c] rounded-lg shadow transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-[#43a047] text-white rounded-lg hover:bg-[#2e7d32] transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Thêm đáp án
+            Import đáp án
           </button>
         </div>
       </div>

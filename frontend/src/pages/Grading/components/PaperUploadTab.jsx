@@ -281,7 +281,7 @@ export default function PaperUploadTab({
           Kéo thả ảnh hoặc file ZIP vào đây
         </p>
         <p className="text-xs text-gray-400 mt-2">
-          Hỗ trợ: JPG, PNG, GIF, BMP, WEBP, ZIP
+          Hỗ trợ: JPG, PNG, ZIP
         </p>
         <div className="flex items-center justify-center gap-4 mt-4">
           <button
@@ -290,7 +290,8 @@ export default function PaperUploadTab({
               e.stopPropagation();
               fileInputRef.current?.click();
             }}
-            className="px-4 py-2 text-sm font-medium text-white bg-[#43a047] rounded-lg hover:bg-[#2e7d32] transition-colors"
+            className="px-4 py-2 text-sm font-medium text-white bg-[#43a047] rounded-lg hover:bg-[#2e7d32]
+            transition-colors"
           >
             Chọn ảnh
           </button>
@@ -300,7 +301,8 @@ export default function PaperUploadTab({
               e.stopPropagation();
               zipInputRef.current?.click();
             }}
-            className="px-4 py-2 text-sm font-medium text-[#43a047] border border-[#43a047] rounded-lg hover:bg-[#e8f5e9] transition-colors"
+            className="px-4 py-2 text-sm font-medium text-[#43a047] border border-[#43a047] rounded-lg
+            hover:bg-[#e8f5e9] transition-colors"
           >
             Chọn ZIP
           </button>
@@ -387,7 +389,8 @@ export default function PaperUploadTab({
           <button
             type="button"
             onClick={handleUpload}
-            className="px-4 py-2 text-white bg-[#43a047] rounded-lg hover:bg-[#2e7d32] transition-colors flex items-center gap-2"
+            className="px-4 py-2 text-white bg-[#43a047] rounded-lg hover:bg-[#2e7d32] transition-colors
+            flex items-center gap-2"
           >
             <Upload className="w-4 h-4" />
             {isZip ? 'Giải nén & Xử lý' : `Upload ${selectedFiles.length} ảnh`}

@@ -48,16 +48,7 @@ export default function GradingTab({
   const [editDetailModal, setEditDetailModal] = useState({
     isOpen: false,
     result: null,
-    formData: {
-      student_code: '',
-      student_name: '',
-      test_code: '',
-      answers: {}, // { "1": "A", "2": "B", ... }
-      total_score: 0,
-    },
-    isSubmitting: false,
-    isFetchingStudent: false,
-    isFetchingAnswerKey: false,
+    isLoading: false,
   });
 
   // ===== HANDLERS =====
@@ -187,32 +178,9 @@ export default function GradingTab({
 
   // ===== HANDLER CHỈNH SỬA CHI TIẾT THÔNG MINH =====
   const openEditDetailModal = (result) => {
-    // Parse answers nếu có
-    let answers = {};
-    try {
-      if (result.answers) {
-        answers = typeof result.answers === 'string'
-          ? JSON.parse(result.answers)
-          : result.answers;
-      }
-    } catch (e) {
-      answers = {};
-    }
-
     setEditDetailModal({
       isOpen: true,
       result: result,
-      formData: {
-        student_code: result.student_code || '',
-        student_name: result.student_name || '',
-        test_code: result.test_code || '',
-        answers: answers,
-        rawAnswers: { ...answers },
-        total_score: result.total_score || 0,
-      },
-      isSubmitting: false,
-      isFetchingStudent: false,
-      isFetchingAnswerKey: false,
     });
   };
 
@@ -351,55 +319,19 @@ export default function GradingTab({
   };
 
   // ===== LƯU CHỈNH SỬA =====
-  const handleSaveEditDetail = async () => {
-    const { formData, result } = editDetailModal;
-
-    // Validate
-    if (!formData.student_code.trim()) {
-      toast.error('Vui lòng nhập Số báo danh!');
-      return;
-    }
-    if (!formData.student_name.trim()) {
-      toast.error('Vui lòng nhập Họ và tên!');
-      return;
-    }
-    if (!formData.test_code.trim()) {
-      toast.error('Vui lòng nhập Mã đề!');
-      return;
-    }
-
-    const mergedAnswers = {
-      ...(formData.rawAnswers || {}),
-      ...formData.answers,
-    };
-    // Lấy đáp án chuẩn và tính lại điểm lần cuối cho chắc chắn
-    const officialAns = getOfficialAnswersByCode(formData.test_code);
-    const finalScore = calculateTotalScore(formData.answers, officialAns);
-
-    setEditDetailModal(prev => ({ ...prev, isSubmitting: true }));
-
+  const handleSaveEditDetail = async (resultId, data) => {
     try {
-      await onUpdate(result.result_id, {
-        student_code: formData.student_code.trim(),
-        student_name: formData.student_name.trim(),
-        test_code: formData.test_code.trim(),
-        answers: mergedAnswers,
-        total_score: finalScore,
-        is_manually_edited: true,
-      });
-
-      toast.success('Cập nhật chi tiết thành công!');
+      await onUpdate(resultId, data);
+      toast.success('Cập nhật thành công!');
       closeEditDetailModal();
       if (onRefresh) onRefresh();
     } catch (error) {
-      console.error('Lỗi cập nhật chi tiết:', error);
-      toast.error(error.response?.data?.message || 'Không thể cập nhật chi tiết!');
-    } finally {
-      setEditDetailModal(prev => ({ ...prev, isSubmitting: false }));
+      console.error('Lỗi cập nhật:', error);
+      toast.error(error.response?.data?.message || 'Không thể cập nhật!');
+      throw error;
     }
   };
 
-  // ===== CHẤM LẠI VỚI MÃ ĐỀ MỚI =====
   const handleReGrade = async (resultId, newTestCode) => {
     if (!window.confirm(`Bạn có chắc muốn chấm lại với mã đề "${newTestCode}"?`)) return;
 
@@ -495,7 +427,8 @@ export default function GradingTab({
         </p>
         <button
           onClick={onRefresh}
-          className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm text-[#43a047] bg-[#e8f5e9] rounded-lg hover:bg-[#c8e6c9] transition-colors"
+          className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm text-[#43a047] bg-[#e8f5e9] rounded-lg
+          hover:bg-[#c8e6c9] transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
           Làm mới
@@ -523,21 +456,24 @@ export default function GradingTab({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={onExport}
-            className="flex items-center gap-2 px-4 py-2 text-white bg-[#43a047] rounded-lg hover:bg-[#2e7d32] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-white bg-[#43a047] rounded-lg hover:bg-[#2e7d32]
+            transition-colors"
           >
             <Download className="w-4 h-4" />
             Xuất Excel
           </button>
           <button
             onClick={handleClearAllClick}
-            className="flex items-center gap-2 px-4 py-2 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-red-600 border border-red-200 rounded-lg
+            hover:bg-red-50 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
             Xóa tất cả
           </button>
           <button
             onClick={onRefresh}
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-gray-600 border border-gray-200 rounded-lg
+            hover:bg-gray-50 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
             Làm mới
@@ -578,7 +514,8 @@ export default function GradingTab({
             placeholder="Tìm kiếm theo tên hoặc SBD..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#43a047] focus:border-transparent"
+            className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#43a047]
+            focus:border-transparent"
           />
           {searchTerm && (
             <button
@@ -662,7 +599,8 @@ export default function GradingTab({
                               step="0.01"
                               value={editScore}
                               onChange={(e) => setEditScore(e.target.value)}
-                              className="w-16 px-2 py-1 border border-gray-200 rounded text-center focus:ring-2 focus:ring-[#43a047]"
+                              className="w-16 px-2 py-1 border border-gray-200 rounded text-center focus:ring-2
+                              focus:ring-[#43a047]"
                               autoFocus
                             />
                             <button
@@ -713,7 +651,8 @@ export default function GradingTab({
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => openEditDetailModal(result)}
-                            className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg
+                            transition-colors"
                             title="Sửa chi tiết thông minh"
                           >
                             <Edit3 className="w-4 h-4" />
@@ -762,7 +701,7 @@ export default function GradingTab({
                                 <img
                                   src={result.image_url || '/placeholder-image.png'}
                                   alt="Bài làm"
-                                  className="w-full max-h-48 object-cover"
+                                  className="w-full h-full object-cover"
                                   onError={(e) => {
                                     e.target.src = '/placeholder-image.png';
                                   }}
@@ -852,7 +791,8 @@ export default function GradingTab({
               <button
                 onClick={() => onSearch(searchTerm, pagination.current_page - 1)}
                 disabled={pagination.current_page <= 1}
-                className="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50
+                disabled:cursor-not-allowed"
               >
                 Trước
               </button>
@@ -862,7 +802,8 @@ export default function GradingTab({
               <button
                 onClick={() => onSearch(searchTerm, pagination.current_page + 1)}
                 disabled={pagination.current_page >= pagination.total_pages}
-                className="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50
+                disabled:cursor-not-allowed"
               >
                 Sau
               </button>
@@ -884,20 +825,11 @@ export default function GradingTab({
       <EditResultModal
         isOpen={editDetailModal.isOpen}
         result={editDetailModal.result}
-        formData={editDetailModal.formData}
-        isSubmitting={editDetailModal.isSubmitting}
-        isFetchingStudent={editDetailModal.isFetchingStudent}
-        isFetchingAnswerKey={editDetailModal.isFetchingAnswerKey}
+        students={students}
+        answerKeys={answerKeys}
         onClose={closeEditDetailModal}
-        onStudentCodeChange={handleStudentCodeChange}
-        onTestCodeChange={handleTestCodeChange}
-        onAnswerChange={handleAnswerChange}
         onSave={handleSaveEditDetail}
-        calculateScore={() => calculateTotalScore(
-          editDetailModal.formData.answers,
-          getOfficialAnswersByCode(editDetailModal.formData.test_code)
-        )}
-        getScoreColor={getScoreColor}
+        onRefresh={onRefresh}
       />
 
       {/* ===== MODAL XÓA KẾT QUẢ ===== */}

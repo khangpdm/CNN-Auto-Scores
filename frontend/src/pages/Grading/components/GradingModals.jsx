@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Upload, X, Download, FileSpreadsheet, Loader2, KeyRound, AlertTriangle, Edit3, Save} from "lucide-react";
+import {Upload, X, Download, FileSpreadsheet, Loader2, Maximize2, Save, Eye} from "lucide-react";
 import {toast} from "sonner";
 
 export function ImportStudentModal ({
@@ -235,10 +235,7 @@ export function ImportAnswerModal({
                 Import đáp án
               </h2>
               <button
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setSelectedFile(null);
-                }}
+                onClick={handleClose}
                 className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5 text-gray-500" />
@@ -306,10 +303,7 @@ export function ImportAnswerModal({
               {/* Nút action */}
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                 <button
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    setSelectedFile(null);
-                  }}
+                  onClick={handleClose}
                   className="px-4 py-2.5 text-gray-600 font-medium rounded-lg hover:bg-gray-100 transition-colors text-sm"
                 >
                   Hủy
@@ -385,180 +379,396 @@ export function ConfirmDeleteModal({
 export function EditResultModal({
   isOpen,
   result,
-  formData,
-  isSubmitting,
-  isFetchingStudent,
-  isFetchingAnswerKey,
+  students = [],
+  answerKeys = [],
   onClose,
-  onStudentCodeChange,
-  onTestCodeChange,
-  onAnswerChange,
   onSave,
-  calculateScore,
-  getScoreColor,
+  onRefresh,
 }){
-  if (!isOpen || !result) return null;
+    const [formData, setFormData] = useState({
+        student_code: '',
+        student_name: '',
+        test_code: '',
+        answers: {},
+        total_score: 0,
+    });
+    const [isSubmitting, setIsSubmitting] = useState(null);
+    const [isFetchingStudent, setIsFetchingStudent] = useState(null);
+
+    useEffect(() => {
+        if (isOpen && result) {
+            let answers = {};
+            try {
+                if (result.answers){
+                    answers = typeof result.answers === 'string'
+                    ? JSON.parse(result.answers)
+                    : result.answers;
+                }
+            } catch (error) {
+                answers = {};
+            }
+
+            setFormData ({
+                student_code: result.student_code || '',
+                student_name: result.student_name || '',
+                test_code: result.test_code || '',
+                answers: answers,
+                total_score: result.total_score || 0,
+            });
+        }
+    }, [isOpen, result]);
+
+    if(!isOpen || !result) return null;
+
+    const getOfficialAnswers = (testCode) => {
+        if (!testCode) return {};
+        const found = answerKeys.find(
+            k => String(k.test_code).trim() === String(testCode).trim()
+        );
+        if (!found) return {};
+        try {
+            return typeof found.answers === 'string'
+            ?JSON.parse(found.answers)
+            : found.answers;
+        } catch (error) {
+            return {};
+        }
+    };
+
+    const calculateScore = (studentAnswers = {}, officialAnswers = {}) => {
+        const officialKeys = Object.keys(officialAnswers);
+        const totalQuestion = officialKeys.length;
+        if (totalQuestion === 0) return 0;
+
+        const scorePerQuestion = 10 / totalQuestion;
+        let correctCount = 0;
+
+        officialKeys.forEach((qNum) => {
+            const studentAns = String(studentAnswers[qNum] || '').trim().toUpperCase();
+            const officialAns = String(officialAnswers[qNum] || '').trim().toUpperCase();
+            if (studentAns && studentAns === officialAns){
+                correctCount++;
+            }
+        });
+
+        return Math.round((correctCount * scorePerQuestion) * 100) / 100;
+    };
+
+    const handleStudentCodeChange = (value) => {
+        setFormData(prev => ({...prev, student_code: value, student_name: ''}));
+        setIsFetchingStudent(true);
+
+        if (!value.trim()){
+            setIsFetchingStudent(false);
+            return;
+        }
+
+        const foundStudent = students.find(
+            s => s.student_code === value.trim()
+        );
+
+        if (foundStudent) {
+            setFormData(prev => ({
+                ...prev,
+                student_name: foundStudent.full_name || '',
+            }));
+            toast.success(`Đã tìm thấy: ${foundStudent.full_name || foundStudent.name}`);
+        }
+        setIsFetchingStudent(false);
+    };
+
+    const handleTestCodeChange = (value) => {
+        const newTestCode = value.trim();
+        const officialAnswers = getOfficialAnswers(newTestCode);
+        const newScore = calculateScore(formData.answers, officialAnswers);
+
+        setFormData(prev => ({
+          ...prev,
+          test_code: value,
+          total_score: newScore,
+        }));
+
+        if (newTestCode && Object.keys(officialAnswers).length > 0) {
+          toast.success(`Đã tìm thấy đáp án mã đề ${newTestCode}`);
+        } else if (newTestCode) {
+          toast.warning(`Chưa có đáp án cho mã đề ${newTestCode}`);
+        }
+    };
+
+    const handleAnswerChange = (questionIndex, value) => {
+        const updatedAnswers = {
+          ...formData.answers,
+          [questionIndex]: value.toUpperCase(),
+        };
+        const officialAnswers = getOfficialAnswers(formData.test_code);
+        const newScore = calculateScore(updatedAnswers, officialAnswers);
+
+        setFormData(prev => ({
+          ...prev,
+          answers: updatedAnswers,
+          total_score: newScore,
+        }));
+    };
+
+  const handleSave = async () => {
+    if (!formData.student_code.trim()) {
+      toast.error('Vui lòng nhập SBD!');
+      return;
+    }
+    if (!formData.student_name.trim()) {
+      toast.error('Vui lòng nhập Họ và tên!');
+      return;
+    }
+    if (!formData.test_code.trim()) {
+      toast.error('Vui lòng nhập Mã đề!');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onSave(result.result_id, {
+        student_code: formData.student_code.trim(),
+        student_name: formData.student_name.trim(),
+        test_code: formData.test_code.trim(),
+        answers: formData.answers,
+        total_score: formData.total_score,
+        is_manually_edited: true,
+      });
+      toast.success('Cập nhật thành công!');
+      onClose();
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Không thể cập nhật!');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+    const getScoreColor = (score) => {
+        if (score >= 8) return 'text-green-600';
+        if (score >= 5) return 'text-blue-600';
+        return 'text-red-600';
+    };
+
+    const officialAnswers = getOfficialAnswers(formData.test_code);
+    const totalQuestions = Object.keys(officialAnswers).length || Object.keys(formData.answers).length;
+
+    const getFreshImageUrl = (url) => {
+        if (!url) return '';
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}t=${new Date().getTime()}`;
+    };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto py-8">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <Edit3 className="w-5 h-5 text-purple-600" />
-            Chỉnh sửa chi tiết thông minh
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {/* Thông tin cơ bản */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                SBD <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={formData.student_code || ''}
-                  onChange={(e) => onStudentCodeChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent pr-8"
-                  placeholder="VD: 312341"
-                />
-                {isFetchingStudent && (
-                  <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
-                )}
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Nhập SBD để tự động tìm tên học sinh
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Họ và tên <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.student_name || ''}
-                onChange={(e) => onStudentCodeChange(e.target.value, 'name')}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="VD: Nguyễn Văn A"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mã đề <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={formData.test_code || ''}
-                onChange={(e) => onTestCodeChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent pr-8"
-                placeholder="VD: 156"
-              />
-              {isFetchingAnswerKey && (
-                <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm overflow-y-auto">
+      <div className="min-h-screen flex items-start justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-4">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-2xl z-10">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold text-gray-800">
+                Chỉnh sửa kết quả
+              </h2>
+              <span className="text-sm text-gray-500">
+                #{result.student_code || '---'}
+              </span>
+              {result.is_manually_edited && (
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                  Đã sửa thủ công
+                </span>
               )}
             </div>
-            <p className="text-xs text-gray-400 mt-1">
-              Nhập mã đề để tự động lấy đáp án và chấm lại
-            </p>
-          </div>
-
-          {/* Đáp án từng câu */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Đáp án từng câu
-              </label>
-              <span className="text-xs text-gray-400">
-                {Object.keys(formData.answers || {}).length} câu
-              </span>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3 max-h-60 overflow-y-auto border border-gray-200">
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                {Object.entries(formData.answers || {}).map(([question, answer]) => (
-                  <div key={question} className="flex items-center gap-1">
-                    <span className="text-xs text-gray-500">Câu {question}:</span>
-                    <input
-                      type="text"
-                      maxLength={1}
-                      value={answer || ''}
-                      onChange={(e) => onAnswerChange(question, e.target.value)}
-                      className="w-10 px-1 py-1 text-center border border-gray-200 rounded focus:ring-2 focus:ring-purple-500 text-sm font-bold uppercase"
-                      placeholder="?"
-                    />
-                  </div>
-                ))}
-              </div>
-              {Object.keys(formData.answers || {}).length === 0 && (
-                <p className="text-center text-gray-400 text-sm py-4">
-                  Chưa có đáp án. Nhập mã đề để tự động lấy đáp án.
-                </p>
-              )}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              Sửa đáp án từng câu để cập nhật điểm tự động
-            </p>
-          </div>
-
-          {/* Điểm tính tự động */}
-          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Điểm tự động:</span>
-              <span className={`text-lg font-bold ${getScoreColor(calculateScore())}`}>
-                {calculateScore().toFixed(2)}
-              </span>
-            </div>
-            <p className="text-xs text-blue-600 mt-1">
-              Điểm được tính tự động dựa trên số câu đã nhập đáp án
-            </p>
-          </div>
-
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <p className="text-xs text-yellow-700 flex items-start gap-1">
-              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-              <span>
-                <strong>Lưu ý:</strong>
-                <br />• Sửa SBD sẽ tự động tìm tên học sinh
-                <br />• Sửa mã đề sẽ tự động lấy đáp án và cập nhật điểm
-                <br />• Sửa đáp án từng câu sẽ tự động tính lại điểm
-              </span>
-            </p>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
             <button
               onClick={onClose}
-              className="px-4 py-2.5 text-gray-600 font-medium rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              Hủy
+              <X className="w-5 h-5 text-gray-500" />
             </button>
-            <button
-              onClick={onSave}
-              disabled={isSubmitting}
-              className="px-4 py-2.5 text-white font-semibold bg-purple-600 rounded-lg hover:bg-purple-700 transition-all disabled:opacity-50 flex items-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Đang lưu...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Lưu thay đổi
-                </>
-              )}
-            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Cột trái: Ảnh bài làm */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-700 flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  Ảnh bài làm gốc
+                </h3>
+              </div>
+
+              <div
+                className={`bg-gray-100 rounded-lg border border-gray-200 overflow-hidden transition-all h-[600px]`}
+              >
+                {result.image_url ? (
+                  <img
+                    src={result.image_url ? getFreshImageUrl(result.image_url) : '/placeholder-image.png'}
+                    alt="Bài làm"
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.target.src = '/placeholder-image.png';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    <p>Không có ảnh bài làm</p>
+                  </div>
+                )}
+              </div>
+
+              {/*<div className="text-xs text-gray-400">*/}
+              {/*  * Nhấn phóng to để xem chi tiết, vừa xem ảnh vừa sửa đáp án bên cạnh*/}
+              {/*</div>*/}
+            </div>
+
+            {/* Cột phải: Form chỉnh sửa */}
+            <div className="space-y-4">
+              {/* Thông tin học sinh */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    SBD <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.student_code}
+                      onChange={(e) => handleStudentCodeChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="VD: 312341"
+                    />
+                    {isFetchingStudent && (
+                      <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Họ và tên <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.student_name}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      student_name: e.target.value
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="VD: Nguyễn Văn A"
+                  />
+                </div>
+              </div>
+
+              {/* Mã đề */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mã đề <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.test_code}
+                  onChange={(e) => handleTestCodeChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="VD: 156"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Tổng số câu: {totalQuestions || 0}
+                </p>
+              </div>
+
+              {/* Đáp án */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Đáp án học sinh
+                  </label>
+                  <span className="text-xs text-gray-400">
+                    {Object.keys(formData.answers || {}).length} câu
+                  </span>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 max-h-[300px] overflow-y-auto border border-gray-200">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {Object.entries(formData.answers || {}).map(([question, answer]) => {
+                      const isCorrect = officialAnswers[question] &&
+                        String(answer).toUpperCase() === String(officialAnswers[question]).toUpperCase();
+
+                      return (
+                        <div key={question} className="flex items-center gap-1">
+                          <span className="text-xs text-gray-500">Câu {question}:</span>
+                          <input
+                            type="text"
+                            maxLength={1}
+                            value={answer || ''}
+                            onChange={(e) => handleAnswerChange(question, e.target.value)}
+                            className={`w-10 px-1 py-1 text-center border rounded focus:ring-2 focus:ring-purple-500 text-sm font-bold uppercase ${
+                              isCorrect ? 'border-green-400 bg-green-50' : 'border-gray-200'
+                            }`}
+                            placeholder="?"
+                          />
+                          {isCorrect && (
+                            <span className="text-green-500 text-xs">✓</span>
+                          )}
+                          {officialAnswers[question] && !isCorrect && answer && (
+                            <span className="text-red-500 text-xs">✗</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {Object.keys(formData.answers || {}).length === 0 && (
+                    <p className="text-center text-gray-400 text-sm py-4">
+                      Chưa có đáp án. Nhập mã đề để lấy đáp án.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Điểm */}
+              <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">Điểm:</span>
+                  <span className={`text-lg font-bold ${getScoreColor(formData.total_score)}`}>
+                    {formData.total_score.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-1 text-xs text-gray-500">
+                  <span>Đúng: {
+                    Object.keys(officialAnswers).filter(q =>
+                      String(formData.answers[q] || '').toUpperCase() ===
+                      String(officialAnswers[q] || '').toUpperCase()
+                    ).length
+                  } / {Object.keys(officialAnswers).length} câu</span>
+                  <span>Thang điểm: 10</span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2.5 text-gray-600 font-medium rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSubmitting}
+                  className="px-4 py-2.5 text-white font-semibold bg-purple-600 rounded-lg hover:bg-purple-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Đang lưu...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Lưu thay đổi
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

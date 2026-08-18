@@ -137,7 +137,6 @@ export function useSessionDetail() {
 
   const deleteAllStudents = useCallback(async () => {
     if (students.length === 0) return toast.info("Không có học sinh nào để xóa!");
-    if (!window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ học sinh ?')) return;
 
     try {
       await studentService.deleteAllStudents(sessionId);
@@ -261,7 +260,6 @@ const scanPapers = useCallback(async (files) => {
   }, [fetchResults]);
 
   const deleteResult = useCallback(async (resultId) => {
-    if (!window.confirm('Bạn có chắc muốn xóa kết quả này?')) return;
     try {
       await gradingService.deleteResult(resultId);
       toast.success('Đã xóa kết quả!');
@@ -273,7 +271,6 @@ const scanPapers = useCallback(async (files) => {
   }, [fetchResults, fetchSession]);
 
   const clearAllResults = useCallback(async () => {
-    if (!window.confirm('Bạn có chắc muốn xóa TẤT CẢ kết quả?')) return;
     try {
       await gradingService.clearAllResults(sessionId);
       toast.success('Đã xóa tất cả kết quả!');
@@ -304,6 +301,17 @@ const scanPapers = useCallback(async (files) => {
       toast.error('Không thể xuất file!');
     }
   }, [sessionId]);
+
+  const getResultDetail = useCallback(async (resultId) => {
+    try {
+      const response = await gradingService.getResultDetail(resultId);
+      return response.data;
+    } catch (error) {
+      console.error('Lỗi lấy chi tiết kết quả:', error);
+      toast.error('Không thể lấy chi tiết kết quả!');
+      throw error;
+    }
+  }, []);
 
   // Reset lại ref khi đổi sang sessionId khác
   useEffect(() => {
@@ -394,6 +402,7 @@ const scanPapers = useCallback(async (files) => {
     deleteResult,
     clearAllResults,
     exportResult,
+    getResultDetail,
 
     activeTab,
     setActiveTab,

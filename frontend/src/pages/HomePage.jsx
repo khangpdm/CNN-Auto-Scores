@@ -9,9 +9,10 @@ import {
 } from 'lucide-react';
 
 // import logoImage from '@/assets/images/logo-marker-home.png';
- import heroImage from '@/assets/header-image.png';
+import heroImage from '@/assets/header-image.png';
 import {authService} from "@/services/authService.js";
-// import newsImage from '@/assets/images/bang-tin-moi.svg';
+import raw from '@/assets/raw.jpg';
+import processed from '@/assets/processed.jpg';
 
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -88,7 +89,7 @@ export default function HomePage() {
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-8">
-              <span className="text-xl font-bold text-[#43a047]">OLM Marker</span>
+              <span className="text-xl font-bold text-[#43a047]">ASC Marker</span>
             </Link>
 
             {/* Desktop Menu */}
@@ -267,7 +268,7 @@ export default function HomePage() {
             {/* Hero Content */}
             <div className="flex-1 text-center lg:text-left">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-800 leading-tight mb-6">
-                Phần mềm chấm trắc nghiệm theo mẫu đề thi THPT 2025
+                Phần mềm chấm trắc nghiệm theo mẫu đề thi THPT cũ
               </h1>
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center gap-3 text-gray-700">
@@ -320,7 +321,7 @@ export default function HomePage() {
               Các tính năng nổi bật
             </h2>
             <p className="text-gray-600">
-              Phần mềm chấm trắc nghiệm OLM Marker hỗ trợ đầy đủ theo mẫu đề thi THPT 2025 của Bộ GD&ĐT
+              Phần mềm chấm trắc nghiệm ASC Marker hỗ trợ đầy đủ theo mẫu đề thi THPT 2025 của Bộ GD&ĐT
             </p>
           </div>
 
@@ -392,7 +393,7 @@ export default function HomePage() {
                 <div className="flex items-start gap-3 text-gray-700">
                   <span className="text-[#43a047] font-bold">•</span>
                   <p>
-                    Các mẫu trắc nghiệm chấm trên OLM Marker: Phiếu THPT 2025 của Bộ GD-ĐT, Phiếu thi vào 10 của Hà Nội, Hải Phòng và một số mẫu khác.{' '}
+                    Các mẫu trắc nghiệm chấm trên ASC Marker: {' '}
                     <a href="#" className="text-[#43a047] font-semibold hover:underline">
                       Tải các mẫu phiếu tại đây.
                     </a>
@@ -401,7 +402,7 @@ export default function HomePage() {
                 <div className="flex items-start gap-3 text-gray-700">
                   <span className="text-[#43a047] font-bold">•</span>
                   <p>
-                    Hướng dẫn chấm thi mẫu phiếu THPT 2025 (mã đề 4 chữ số, SBD 8 chữ số), chấm cùng lúc nhiều môn, nhiễu mã đề.{' '}
+                    Hướng dẫn chấm thi mẫu phiếu, chấm cùng lúc nhiều môn, nhiễu mã đề.{' '}
                     <a href="#" className="text-[#43a047] font-semibold hover:underline">
                       Xem hướng dẫn tại đây.
                     </a>
@@ -410,7 +411,7 @@ export default function HomePage() {
                 <div className="flex items-start gap-3 text-gray-700">
                   <span className="text-[#43a047] font-bold">•</span>
                   <p>
-                    Hướng dẫn chấm thi trắc nghiệm,{' '}
+                    Hướng dẫn chấm thi trắc nghiệm.{' '}
                     <a href="#" className="text-[#43a047] font-semibold hover:underline">
                       xem tại đây.
                     </a>
@@ -428,7 +429,7 @@ export default function HomePage() {
                 <div className="flex items-start gap-3 text-gray-700">
                   <span className="text-[#43a047] font-bold">•</span>
                   <p>
-                    Video tập huấn Chấm thi trắc nghiệm trên OLM Marker,{' '}
+                    Video tập huấn Chấm thi trắc nghiệm trên ASC Marker,{' '}
                     <a href="#" className="text-[#43a047] font-semibold hover:underline">
                       xem lại tại đây.
                     </a>
@@ -438,7 +439,7 @@ export default function HomePage() {
             </div>
             <div className="flex-1 flex justify-center">
               <img
-                // src={newsImage}
+                src={processed}
                 alt="Bảng tin mới"
                 className="w-full max-w-md object-contain"
               />
@@ -455,7 +456,7 @@ export default function HomePage() {
               Video hướng dẫn
             </h2>
             <p className="text-gray-600">
-              Thầy cô chưa nắm rõ cách sử dụng OLM Marker? Xem video hướng dẫn để sử dụng các tính năng tuyệt vời của phần mềm.
+              Thầy cô chưa nắm rõ cách sử dụng ASC Marker? Xem video hướng dẫn để sử dụng các tính năng tuyệt vời của phần mềm.
             </p>
           </div>
 
@@ -465,7 +466,7 @@ export default function HomePage() {
               <div className="relative aspect-video bg-gray-900">
                 <iframe
                   className="absolute inset-0 w-full h-full"
-                  src="https://www.youtube.com/embed/pjUzzugh0RI"
+                  src=""
                   title="Video hướng dẫn 1"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -478,7 +479,7 @@ export default function HomePage() {
               <div className="relative aspect-video bg-gray-900">
                 <iframe
                   className="absolute inset-0 w-full h-full"
-                  src="https://www.youtube.com/embed/jdvHABkLDIU"
+                  src=""
                   title="Video hướng dẫn 2"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -498,22 +499,23 @@ export default function HomePage() {
               Hỗ trợ
             </h2>
             <p className="text-gray-600">
-              Thầy cô cần trao đổi về ứng dụng? Hãy liên hệ ngay với chúng tôi. Đội ngũ hỗ trợ OLM luôn sẵn sàng trả lời thầy cô 24/7.
+              Thầy cô cần trao đổi về ứng dụng? Hãy liên hệ ngay với chúng tôi. Đội ngũ hỗ trợ ASC luôn sẵn sàng trả lời thầy cô.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          {/*<div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">*/}
+          <div className="grid grid-cols-1 gap-8 max-w-5xl mx-auto">
             {/* Contact Info */}
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
               <div className="bg-gradient-to-r from-[#43a047] to-[#2e7d32] py-3 text-center">
-                <h3 className="text-lg font-bold text-white">Thông tin về OLM</h3>
+                <h3 className="text-lg font-bold text-white">Thông tin về ASC</h3>
               </div>
               <div className="p-6 space-y-4">
                 <div className="flex items-start gap-4">
                   <Phone className="w-6 h-6 text-[#43a047] flex-shrink-0 mt-1" />
                   <div>
                     <p className="font-medium text-gray-800">Điện thoại/zalo hỗ trợ</p>
-                    <p className="text-gray-600">0898987672, 0986557525</p>
+                    <p className="text-gray-600">0879954823</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -521,59 +523,59 @@ export default function HomePage() {
                   <div>
                     <p className="font-medium text-gray-800">Địa chỉ liên hệ</p>
                     <p className="text-gray-600">
-                      156 Nguyễn Đổng Chi, Quận Nam Từ Liêm, Hà Nội.
+                      Thành Phố Hồ Chí Minh.
                       <br />
-                      Email: a@olm.vn
+                      Email: phamdangminhkhang@gmail.com
                     </p>
                   </div>
                 </div>
-                <div className="text-center pt-2 border-t border-gray-100">
-                  <p className="font-semibold text-gray-700 mb-2">Nhóm Zalo hỗ trợ</p>
-                  <a
-                    href="https://zalo.me/g/shpdrx553"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#43a047] font-semibold hover:underline"
-                  >
-                    https://zalo.me/g/shpdrx553
-                  </a>
-                </div>
+                {/*<div className="text-center pt-2 border-t border-gray-100">*/}
+                {/*  <p className="font-semibold text-gray-700 mb-2">Nhóm Zalo hỗ trợ</p>*/}
+                {/*  <a*/}
+                {/*    href=""*/}
+                {/*    target="_blank"*/}
+                {/*    rel="noopener noreferrer"*/}
+                {/*    className="text-[#43a047] font-semibold hover:underline"*/}
+                {/*  >*/}
+                {/*    */}
+                {/*  </a>*/}
+                {/*</div>*/}
               </div>
             </div>
 
             {/* Registration Form */}
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
-              <div className="bg-[#f48220] py-3 text-center">
-                <h3 className="text-lg font-bold text-white">Đăng ký tư vấn</h3>
-              </div>
-              <div className="p-6">
-                <form className="space-y-4">
-                  <input
-                    type="text"
-                    placeholder="Họ và tên *"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#43a047] focus:border-transparent transition-all"
-                    required
-                  />
-                  <input
-                    type="tel"
-                    placeholder="Số điện thoại *"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#43a047] focus:border-transparent transition-all"
-                    required
-                  />
-                  <textarea
-                    placeholder="Yêu cầu thêm (nếu có)"
-                    rows="3"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#43a047] focus:border-transparent transition-all resize-none"
-                  />
-                  <button
-                    type="submit"
-                    className="w-full py-3 text-white font-semibold bg-gradient-to-r from-[#43a047] to-[#2e7d32] rounded-lg hover:from-[#388e3c] hover:to-[#1b5e20] transition-all shadow-lg hover:shadow-xl"
-                  >
-                    GỬI ĐĂNG KÝ
-                  </button>
-                </form>
-              </div>
-            </div>
+            {/*<div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">*/}
+            {/*  <div className="bg-[#f48220] py-3 text-center">*/}
+            {/*    <h3 className="text-lg font-bold text-white">Đăng ký tư vấn</h3>*/}
+            {/*  </div>*/}
+            {/*  <div className="p-6">*/}
+            {/*    <form className="space-y-4">*/}
+            {/*      <input*/}
+            {/*        type="text"*/}
+            {/*        placeholder="Họ và tên *"*/}
+            {/*        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#43a047] focus:border-transparent transition-all"*/}
+            {/*        required*/}
+            {/*      />*/}
+            {/*      <input*/}
+            {/*        type="tel"*/}
+            {/*        placeholder="Số điện thoại *"*/}
+            {/*        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#43a047] focus:border-transparent transition-all"*/}
+            {/*        required*/}
+            {/*      />*/}
+            {/*      <textarea*/}
+            {/*        placeholder="Yêu cầu thêm (nếu có)"*/}
+            {/*        rows="3"*/}
+            {/*        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#43a047] focus:border-transparent transition-all resize-none"*/}
+            {/*      />*/}
+            {/*      <button*/}
+            {/*        type="submit"*/}
+            {/*        className="w-full py-3 text-white font-semibold bg-gradient-to-r from-[#43a047] to-[#2e7d32] rounded-lg hover:from-[#388e3c] hover:to-[#1b5e20] transition-all shadow-lg hover:shadow-xl"*/}
+            {/*      >*/}
+            {/*        GỬI ĐĂNG KÝ*/}
+            {/*      </button>*/}
+            {/*    </form>*/}
+            {/*  </div>*/}
+            {/*</div>*/}
           </div>
         </div>
       </section>
@@ -582,15 +584,15 @@ export default function HomePage() {
       <footer className="py-12 bg-gray-50 border-t border-gray-100">
         <div className="container mx-auto px-4 text-center">
           <p className="text-gray-600 mb-2">
-            OLM Marker là một sản phẩm trong hệ sinh thái dạy học trực tuyến cho nhà trường.
+            ASC Marker là một sản phẩm giúp rút ngắn thời gian chấm thi cho giáo viên.
           </p>
-          <p className="text-gray-600">
-            Vui lòng{' '}
-            <a href="#" className="text-[#43a047] font-semibold hover:underline">
-              click vào đây
-            </a>{' '}
-            để khám phá thêm các tính năng khác.
-          </p>
+          {/*<p className="text-gray-600">*/}
+          {/*  Vui lòng{' '}*/}
+          {/*  <a href="#" className="text-[#43a047] font-semibold hover:underline">*/}
+          {/*    click vào đây*/}
+          {/*  </a>{' '}*/}
+          {/*  để khám phá thêm các tính năng khác.*/}
+          {/*</p>*/}
         </div>
       </footer>
     </div>

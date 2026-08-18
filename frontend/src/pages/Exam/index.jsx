@@ -130,10 +130,6 @@ export default function ExaminationListPage() {
       return;
     }
 
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa kỳ thi "${examName || 'không tên'}"?`)) {
-      return;
-    }
-
     try {
       setLoading(true);
       await examService.deleteExam(examId);
