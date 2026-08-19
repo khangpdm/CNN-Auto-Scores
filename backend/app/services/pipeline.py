@@ -3,9 +3,8 @@ import os
 import cv2
 
 from dotenv import load_dotenv
-load_dotenv()  # Tìm file .env trong thư mục hiện tại
+load_dotenv()
 
-# Giữ nguyên các hàm import từ file xử lý ảnh của bạn
 from services.process_img import (
     ANSWERS_KEY,
     print_img,
@@ -74,7 +73,7 @@ def process_and_draw_result(warped_img, results, answers_key, id_results=None):
         geom = q_data.get("geometry", {})
 
         # TRƯỜNG HỢP 1: Học sinh KHÔNG KHOANH hoặc KHOANH TRÙNG (student_ans là None)
-        if student_ans is None:
+        if student_ans is None or student_ans == '':
             if true_ans in geom:
                 pos_right = geom[true_ans]
                 cx_r = pos_right["cx"] + MOVE_X

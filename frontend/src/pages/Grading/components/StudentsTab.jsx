@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import { Users, Upload, Trash2, Search, X, Loader2, Download, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { ImportStudentModal, ConfirmDeleteModal } from './GradingModals';
@@ -16,6 +16,7 @@ export default function StudentsTab({
     const [searchTerm, setSearchTerm] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
+    const [filteredStudents, setFilteredStudents] = useState(students);
 
     const [deleteModal, setDeleteModal] = useState({
         isOpen: false,
@@ -24,14 +25,34 @@ export default function StudentsTab({
         isDeleting: false,
     });
 
-    const handleSearch = (e) => {
-      e.preventDefault();
-      onSearch(searchTerm);
+    const handleSearch = (keyword) => {
+        setSearchTerm(keyword);
+        if (!keyword.trim()) {
+          setFilteredStudents(students);
+          return;
+        }
+        const filtered = students.filter(student =>
+          (student.full_name || '').toLowerCase().includes(keyword.toLowerCase()) ||
+          (student.student_code || '').toLowerCase().includes(keyword.toLowerCase())
+        );
+        setFilteredStudents(filtered);
     };
 
-    const handleClearSearch = () => {
-      setSearchTerm('');
-      onSearch('');
+    useEffect(() => {
+        if (searchTerm.trim()) {
+            const filtered = students.filter(student =>
+            (student.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (student.student_code || '').toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            setFilteredStudents(filtered);
+        } else {
+            setFilteredStudents(students);
+        }
+        }, [students, searchTerm]);
+
+        const handleClearSearch = () => {
+        setSearchTerm('');
+        setFilteredStudents(students);
     };
 
     const handleDeleteClick = (student) => {
@@ -115,6 +136,8 @@ export default function StudentsTab({
       }
     };
 
+    const displayStudents = searchTerm.trim() ? filteredStudents : students;
+
 
   return (
     <div>
@@ -163,14 +186,14 @@ export default function StudentsTab({
       </div>
 
       {/* Search */}
-      <form onSubmit={handleSearch} className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
             placeholder="Tìm kiếm theo tên hoặc SBD..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#43a047] focus:border-transparent transition-all"
           />
           {searchTerm && (
@@ -183,13 +206,7 @@ export default function StudentsTab({
             </button>
           )}
         </div>
-        <button
-          type="submit"
-          className="px-4 py-2.5 text-white bg-[#43a047] rounded-lg hover:bg-[#2e7d32] transition-all"
-        >
-          Tìm kiếm
-        </button>
-      </form>
+      </div>
 
       {/* Table */}
       {loading ? (
@@ -238,7 +255,7 @@ export default function StudentsTab({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {students.map((student, index) => (
+                  {displayStudents.map((student, index) => (
                     <tr key={student.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3 text-sm text-gray-500">
                         {pagination ? (pagination.current_page - 1) * pagination.page_size + index + 1 : index + 1}
@@ -275,14 +292,14 @@ export default function StudentsTab({
           </div>
 
           {/* Pagination */}
-          {pagination && pagination.total_pages > 1 && (
+          {pagination && pagination.total_pages > 1 && !searchTerm && (
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
               <p className="text-sm text-gray-500">
                 Hiển thị {students.length} / {pagination.total_records} học sinh
               </p>
               <div className="flex gap-1">
                 <button
-                  onClick={() => onSearch(searchTerm, pagination.current_page - 1)}
+                  onClick={() => onSearch('', pagination.current_page - 1)}
                   disabled={pagination.current_page <= 1}
                   className="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >

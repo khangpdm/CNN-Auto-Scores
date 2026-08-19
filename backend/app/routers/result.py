@@ -260,52 +260,156 @@ def export_session_results_excel(
 
     for col_num in range(1, len(headers) + 1):
         cell = ws.cell(row=1, column=col_num)
+    # Màu cho đúng/sai
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = center_align
+
+    correct_fill = PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")
+    wrong_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+
+    # ===== HÀM CHUYỂN ĐỔI TRẠNG THÁI =====
+    def get_status_text(status, is_manual_override):
+        if is_manual_override:
+            return "Chấm tay"
+        status_map = {
+            "VALID": "Đã chấm",
+            "NEED_REVIEW": "Cần xem lại",
+            "PROCESSING": "Đang xử lý",
+            "PENDING": "Đang xử lý",
+            "GRADED": "Đã chấm",
+            "COMPLETED": "Đã chấm",
+        }
+        return status_map.get(status, status or "Đang xử lý")
 
     for idx, res in enumerate(results, start=1):
         student_name = res.student.full_name if res.student else "Chưa định danh"
         student_code = res.student_code or (res.student.student_code if res.student else "N/A")
         final_score = res.manual_score if res.is_manual_override and res.manual_score is not None else res.score
 
+        # ===== LẤY TRẠNG THÁI TIẾNG VIỆT =====
+        status_text = get_status_text(res.status, res.is_manual_override)
+
         row_data = [
             idx,
             student_code,
             student_name,
             res.detected_test_code or "N/A",
-            res.correct_count,
-            res.total_questions,
-            round(final_score, 2),
-            "Chấm tay" if res.is_manual_override else res.status
+            res.correct_count or 0,
+            res.total_questions or max_q,
+            round(final_score, 2) if final_score is not None else 0,
+            status_text
         ]
 
         user_answers = res.manual_answers if res.is_manual_override and res.manual_answers else res.answers
+
         if isinstance(user_answers, str):
             try:
                 user_answers = json.loads(user_answers)
-            except Exception:
+            except:
                 user_answers = {}
-        elif not isinstance(user_answers, dict):
+
+        if not isinstance(user_answers, dict):
             user_answers = {}
 
         for q_idx in range(1, max_q + 1):
-            ans = user_answers.get(str(q_idx), user_answers.get(q_idx, ""))
-            row_data.append(str(ans) if ans else "")
+            key = str(q_idx)
+            question_data = user_answers.get(key, {})
+
+            if isinstance(question_data, dict):
+                choice = question_data.get('choice', '')
+                is_correct = question_data.get('is_correct', False)
+            else:
+                choice = str(question_data) if question_data else ''
+                is_correct = False
+
+            if choice:
+                row_data.append(choice)
+            else:
+                row_data.append('')
 
         ws.append(row_data)
 
         current_row = idx + 1
+
         for col_num in range(1, len(headers) + 1):
             cell = ws.cell(row=current_row, column=col_num)
             cell.border = border_thin
             if col_num in [1, 2, 4, 5, 6, 7, 8] or col_num > 8:
                 cell.alignment = center_align
 
+            if col_num > 8:
+                value = cell.value
+                if value:
+                    q_idx = col_num - 8
+                    key = str(q_idx)
+                    question_data = user_answers.get(key, {})
+
+                    if isinstance(question_data, dict):
+                        is_correct = question_data.get('is_correct', False)
+                    else:
+                        is_correct = False
+
+                    if is_correct:
+                        cell.fill = correct_fill
+                        cell.font = Font(color="000000", bold=True)
+                    else:
+                        cell.fill = wrong_fill
+                        cell.font = Font(color="FFFFFF", bold=True)
+
+    # ===== ĐỊNH DẠNG CỘT ĐIỂM =====
+    for row in range(2, len(results) + 2):
+        score_cell = ws.cell(row=row, column=7)
+        if score_cell.value is not None:
+            try:
+                score_val = float(score_cell.value)
+                if score_val >= 8:
+                    score_cell.font = Font(color="008000", bold=True)
+                elif score_val >= 5:
+                    score_cell.font = Font(color="0000FF")
+                else:
+                    score_cell.font = Font(color="FF0000")
+            except:
+                pass
+
+    # ===== ĐỊNH DẠNG CỘT TRẠNG THÁI =====
+    for row in range(2, len(results) + 2):
+        status_cell = ws.cell(row=row, column=8)
+        status_value = status_cell.value
+        if status_value == "Đã chấm":
+            status_cell.font = Font(color="008000", bold=True)
+        elif status_value == "Cần xem lại":
+            status_cell.font = Font(color="FF8C00", bold=True)
+        elif status_value == "Đang xử lý":
+            status_cell.font = Font(color="0000FF")
+        elif status_value == "Chấm tay":
+            status_cell.font = Font(color="800080", bold=True)
+
+    # ===== ĐỊNH DẠNG CỘT SỐ CÂU ĐÚNG =====
+    for row in range(2, len(results) + 2):
+        correct_cell = ws.cell(row=row, column=5)
+        if correct_cell.value is not None:
+            try:
+                correct = int(correct_cell.value)
+                total_cell = ws.cell(row=row, column=6)
+                total = int(total_cell.value) if total_cell.value else max_q
+                if total > 0:
+                    ratio = correct / total
+                    if ratio >= 0.8:
+                        correct_cell.font = Font(color="008000", bold=True)
+                    elif ratio >= 0.5:
+                        correct_cell.font = Font(color="0000FF")
+                    else:
+                        correct_cell.font = Font(color="FF0000")
+            except:
+                pass
+
     for col in ws.columns:
         max_len = max(len(str(cell.value or '')) for cell in col)
         col_letter = col[0].column_letter
         ws.column_dimensions[col_letter].width = max(max_len + 3, 10)
+
+    ws.freeze_panes = 'C2'
 
     output_stream = io.BytesIO()
     wb.save(output_stream)

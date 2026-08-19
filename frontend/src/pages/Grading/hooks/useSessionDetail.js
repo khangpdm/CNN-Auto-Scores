@@ -283,24 +283,41 @@ const scanPapers = useCallback(async (files) => {
 
   const exportResult = useCallback(async () => {
     try {
-      const response = await gradingService.exportResults(sessionId);
-      const data = response.data || response;
-      const blob = new Blob([data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
+      const blob = await gradingService.exportResults(sessionId);
+
+      let sessionName = session?.session_name || session?.name;
+
+      if (!sessionName) {
+        try {
+          const response = await sessionService.getSessionDetail(examId, sessionId);
+          const sessionData = response.data || response;
+          sessionName = sessionData?.session_name || sessionData?.name;
+          setSession(sessionData);
+        } catch (error) {
+          console.warn('Không thể lấy tên session:', error);
+          sessionName = `Session_${sessionId}`;
+        }
+      }
+
+      const safeFileName = sessionName.replace(/[^a-zA-Z0-9_\-]/g, '_');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const filename = `BangDiem_${safeFileName}_${dateStr}.xlsx`;
+
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `bang_diem_${sessionId}.xlsx`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      toast.success('Xuất file thành công!');
+
+      toast.success(`Xuất file "${filename}" thành công!`);
     } catch (error) {
-      toast.error('Không thể xuất file!');
+      console.error('Lỗi xuất file:', error);
+      toast.error(error.response?.data?.message || 'Không thể xuất file!');
     }
-  }, [sessionId]);
+  }, [sessionId, session, examId]);
 
   const getResultDetail = useCallback(async (resultId) => {
     try {
@@ -365,6 +382,7 @@ const scanPapers = useCallback(async (files) => {
         fetchResults();
       }
     }, [activeTab, sessionId, fetchResults]);
+
 
   return {
     session,

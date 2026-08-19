@@ -6,7 +6,7 @@ from streamlit import status
 
 from database.connection import get_db
 from database.models import Exam, ExamStatus, SessionStatus, User, ExamSession, ExamShared, \
-    ExamPermission
+    ExamPermission, ExamSession, Student, StudentResult, AnswerKey, ScanBatch
 from routers.auth import get_current_user
 
 routers = APIRouter(prefix="/api/v1/exams", tags=["Exams & Sessions Management"])
@@ -329,16 +329,18 @@ def update_exam_session(
         "data": session
     }
 
+
 @routers.delete("/{exam_id}/sessions/{session_id}", summary="Xóa đợt thi")
 def delete_exam_session(
         exam_id: int,
         session_id: int,
         db: Session = Depends(get_db),
-        current_user = Depends(get_current_user),
+        current_user=Depends(get_current_user),
 ):
     session = db.query(ExamSession).filter(
         ExamSession.id == session_id,
-        ExamSession.exam_id == exam_id).first()
+        ExamSession.exam_id == exam_id
+    ).first()
 
     if not session:
         raise HTTPException(404, "Đợt thi không tồn tại")
@@ -350,6 +352,12 @@ def delete_exam_session(
         )
 
     session_name = session.session_name
+
+    db.query(Student).filter(Student.session_id == session_id).delete()
+    db.query(StudentResult).filter(StudentResult.session_id == session_id).delete()
+    db.query(AnswerKey).filter(AnswerKey.session_id == session_id).delete()
+    db.query(ScanBatch).filter(ScanBatch.session_id == session_id).delete()
+
     db.delete(session)
     db.commit()
 
