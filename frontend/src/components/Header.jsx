@@ -22,9 +22,9 @@ export default function Header() {
           <div className="flex items-center gap-3">
             <Link to="/trang-chu" className="flex items-center gap-2">
               <div className="w-10 h-10 bg-[#43a047] rounded-lg flex items-center justify-center shadow-md">
-                <span className="text-white font-bold text-lg">O</span>
+                <span className="text-white font-bold text-lg">A</span>
               </div>
-              <span className="font-bold text-gray-800 text-lg hidden sm:block">OLM</span>
+              <span className="font-bold text-gray-800 text-lg hidden sm:block">ASC</span>
             </Link>
             <span className="text-gray-300">|</span>
             <span className="text-gray-600 font-medium text-sm hidden md:block">

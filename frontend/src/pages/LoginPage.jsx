@@ -1,22 +1,21 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from 'sonner';
-import { LogIn, Loader2, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Loader2, User, Lock, Eye, EyeOff, ArrowLeft, Home } from 'lucide-react';
 
 import { authService } from "@/services/authService.js";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');  // ✅ Giữ username
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);  // 👈 THÊM
-  const [rememberMe, setRememberMe] = useState(true);       // 👈 THÊM
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    // ✅ Kiểm tra username và password
     if (!username || !password) {
       toast.error('Vui lòng nhập đầy đủ Username và Mật khẩu!');
       return;
@@ -24,12 +23,10 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // ✅ Gọi login với username
       await authService.login(username, password);
       toast.success('Đăng nhập thành công!');
       navigate('/trang-chu');
     } catch (error) {
-      // ✅ Sửa lỗi chính tả: response (không phải respones)
       const errorMsg = error.response?.data?.detail || 'Đăng nhập thất bại. Vui lòng kiểm tra lại!';
       toast.error(errorMsg);
     } finally {
@@ -39,15 +36,25 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#e8f5e9] via-[#c8e6c9] to-[#a5d6a7] p-4">
-      <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden grid md:grid-cols-2 gap-0">
+      <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden grid md:grid-cols-2 gap-0 relative">
+        {/* 👉 Nút quay về trang chủ */}
+        <Link
+          to="/"
+          className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 text-sm text-gray-600
+          hover:text-[#43a047] bg-white/80 backdrop-blur-sm rounded-lg hover:bg-white
+          transition-all shadow-sm hover:shadow-md"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="hidden sm:inline">Về trang chủ</span>
+          <span className="sm:hidden">Trang chủ</span>
+        </Link>
+
         {/* Left - Decorative Background */}
         <div className="hidden md:flex bg-gradient-to-br from-[#66bb6a] to-[#388e3c] p-12 items-center justify-center relative overflow-hidden">
-          {/* Decorative circles */}
           <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-white/10"></div>
           <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-white/5"></div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-white/5"></div>
 
-          {/* Content */}
           <div className="relative z-10 text-center">
             <div className="w-32 h-32 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm">
               <svg className="w-20 h-20 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -157,7 +164,7 @@ export default function LoginPage() {
               <p className="text-center text-sm text-gray-600">
                 Chưa có tài khoản?{' '}
                 <Link
-                  to="/register"
+                  to="/dang-ky"
                   className="text-[#43a047] font-semibold hover:text-[#2e7d32] hover:underline"
                 >
                   Đăng ký

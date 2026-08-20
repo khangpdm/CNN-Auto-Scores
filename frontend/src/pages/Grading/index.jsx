@@ -52,11 +52,12 @@ export default function SessionDetailPage() {
         updateResult,
         deleteResult,
         clearAllResults,
-        exportResults,
+        exportResult,
 
         // Tab
         activeTab,
         setActiveTab,
+        getResultDetail,
       } = useSessionDetail();
 
 
@@ -125,7 +126,6 @@ export default function SessionDetailPage() {
                       isScanning={isScanning}
                       onScan={scanPapers}
                       onRefresh={() => {
-                        // Gọi hàm refresh lại dữ liệu papers / results tương ứng
                       }}
                     />
                 );
@@ -142,9 +142,9 @@ export default function SessionDetailPage() {
                     onUpdate={updateResult}
                     onDelete={deleteResult}
                     onClearAll={clearAllResults}
-                    // onExport={}
+                    onExport={exportResult}
                     onRefresh={fetchResults}
-                    // onReGrade={}
+                    onGetResultDetail={getResultDetail}
                   />
                 );
             default:

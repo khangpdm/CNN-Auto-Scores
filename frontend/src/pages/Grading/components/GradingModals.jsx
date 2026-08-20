@@ -397,24 +397,20 @@ export function EditResultModal({
 
     useEffect(() => {
         if (isOpen && result) {
-            let answers = {};
-            try {
-                if (result.answers){
-                    answers = typeof result.answers === 'string'
-                    ? JSON.parse(result.answers)
-                    : result.answers;
-                }
-            } catch (error) {
-                answers = {};
-            }
-
-            setFormData ({
-                student_code: result.student_code || '',
-                student_name: result.student_name || '',
-                test_code: result.test_code || '',
-                answers: answers,
-                total_score: result.total_score || 0,
+          let answers = {};
+          if (result.questions && Array.isArray(result.questions)) {
+            result.questions.forEach(q => {
+              answers[q.question_number] = q.student_answer || '';
             });
+          }
+
+          setFormData({
+            student_code: result.student_code || '',
+            student_name: result.student_name || '',
+            test_code: result.test_code || '',
+            answers: answers,
+            total_score: result.total_score || 0,
+          });
         }
     }, [isOpen, result]);
 
@@ -510,39 +506,40 @@ export function EditResultModal({
         }));
     };
 
-  const handleSave = async () => {
-    if (!formData.student_code.trim()) {
-      toast.error('Vui lòng nhập SBD!');
-      return;
-    }
-    if (!formData.student_name.trim()) {
-      toast.error('Vui lòng nhập Họ và tên!');
-      return;
-    }
-    if (!formData.test_code.trim()) {
-      toast.error('Vui lòng nhập Mã đề!');
-      return;
-    }
+    const handleSave = async () => {
+            if (!formData.student_code.trim()) {
+            toast.error('Vui lòng nhập SBD!');
+            return;
+        }
+        if (!formData.student_name.trim()) {
+            toast.error('Vui lòng nhập Họ và tên!');
+            return;
+        }
+        if (!formData.test_code.trim()) {
+            toast.error('Vui lòng nhập Mã đề!');
+            return;
+        }
 
-    setIsSubmitting(true);
-    try {
-      await onSave(result.result_id, {
-        student_code: formData.student_code.trim(),
-        student_name: formData.student_name.trim(),
-        test_code: formData.test_code.trim(),
-        answers: formData.answers,
-        total_score: formData.total_score,
-        is_manually_edited: true,
-      });
-      toast.success('Cập nhật thành công!');
-      onClose();
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Không thể cập nhật!');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+        // 👇 Chuẩn bị data theo đúng format API
+        const payload = {
+            student_code: formData.student_code.trim(),
+            test_code: formData.test_code.trim(),
+            answers: formData.answers,
+        };
+
+        setIsSubmitting(true);
+        try {
+            await onSave(result.result_id, payload);
+            toast.success('Cập nhật thành công!');
+            onClose();
+            if (onRefresh) onRefresh();
+        } catch (error) {
+            console.error('Lỗi cập nhật:', error);
+            toast.error(error.response?.data?.message || 'Không thể cập nhật!');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const getScoreColor = (score) => {
         if (score >= 8) return 'text-green-600';
@@ -555,8 +552,16 @@ export function EditResultModal({
 
     const getFreshImageUrl = (url) => {
         if (!url) return '';
-        const separator = url.includes('?') ? '&' : '?';
-        return `${url}${separator}t=${new Date().getTime()}`;
+
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            const separator = url.includes('?') ? '&' : '?';
+            return `${url}${separator}t=${new Date().getTime()}`;
+        }
+
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+        const separator = cleanUrl.includes('?') ? '&' : '?';
+        return `${baseUrl}${cleanUrl}${separator}t=${new Date().getTime()}`;
     };
 
   return (
@@ -602,7 +607,7 @@ export function EditResultModal({
               >
                 {result.image_url ? (
                   <img
-                    src={result.image_url ? getFreshImageUrl(result.image_url) : '/placeholder-image.png'}
+                    src={getFreshImageUrl(result.image_url)}
                     alt="Bài làm"
                     className="w-full h-full object-contain"
                     onError={(e) => {

@@ -34,14 +34,15 @@ export default function ExamGuide() {
           <div className="w-10 h-10 bg-[#43a047] rounded-xl flex items-center justify-center">
             <BookOpen className="w-5 h-5 text-white" />
           </div>
-          <h2 className="text-xl font-bold text-gray-800">Hướng dẫn sử dụng OLM Marker</h2>
+          <h2 className="text-xl font-bold text-gray-800">Hướng dẫn sử dụng ASC Marker</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {guideSteps.map((item, index) => {
             const Icon = item.icon;
             return (
-              <div key={index} className="bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-white shadow-sm hover:shadow-md transition-all">
+              <div key={index} className="bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-white shadow-sm
+              hover:shadow-md transition-all">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 bg-[#43a047]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                     <span className="text-[#43a047] font-bold text-lg">{item.step}</span>

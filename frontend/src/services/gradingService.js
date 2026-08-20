@@ -50,7 +50,9 @@ export const gradingService = {
     },
 
     exportResults: async (sessionId) => {
-        const response = await api.get(`/api/v1/sessions/${sessionId}/export-excel`);
+        const response = await api.get(`/api/v1/sessions/${sessionId}/export-excel`, {
+            responseType: 'blob',
+        });
         return response.data;
     },
 }

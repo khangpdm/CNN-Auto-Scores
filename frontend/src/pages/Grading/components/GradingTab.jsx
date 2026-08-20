@@ -22,10 +22,12 @@ export default function GradingTab({
   onExport,
   onRefresh,
   onReGrade,
+  onGetResultDetail,
 }) {
   // ===== STATE =====
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filteredResults, setFilteredResults] = useState(results);
   const [expandedResult, setExpandedResult] = useState(null);
   const [editingResult, setEditingResult] = useState(null);
   const [editScore, setEditScore] = useState('');
@@ -52,18 +54,40 @@ export default function GradingTab({
   });
 
   // ===== HANDLERS =====
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (onSearch) onSearch(searchTerm);
-  };
-
-  const handleClearSearch = () => {
-    setSearchTerm('');
-    if (onSearch) onSearch('');
+  const handleSearch = (keyword) => {
+    setSearchTerm(keyword);
+    applyFilters(keyword, filterStatus);
   };
 
   const handleFilterChange = (status) => {
     setFilterStatus(status);
+    applyFilters(searchTerm, status);
+  };
+
+  const applyFilters = (keyword, status) => {
+    let filtered = [...results];
+
+    if (keyword.trim()) {
+      filtered = filtered.filter(result =>
+        (result.student_name || '').toLowerCase().includes(keyword.toLowerCase()) ||
+        (result.student_code || '').toLowerCase().includes(keyword.toLowerCase())
+      );
+    }
+
+    if (status !== 'all') {
+      filtered = filtered.filter(result => result.status === status);
+    }
+
+    setFilteredResults(filtered);
+  };
+
+  useEffect(() => {
+    applyFilters(searchTerm, filterStatus);
+  }, [results]);
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    applyFilters('', filterStatus);
   };
 
   const handleEditScore = (result) => {
@@ -177,11 +201,31 @@ export default function GradingTab({
   };
 
   // ===== HANDLER CHỈNH SỬA CHI TIẾT THÔNG MINH =====
-  const openEditDetailModal = (result) => {
+  const openEditDetailModal = async (result) => {
+    // Hiển thị loading
     setEditDetailModal({
       isOpen: true,
-      result: result,
+      result: null,
     });
+
+    try {
+      // Gọi API lấy chi tiết kết quả
+      const detailResult = await onGetResultDetail(result.result_id);
+
+      setEditDetailModal({
+        isOpen: true,
+        result: detailResult,
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error('Lỗi lấy chi tiết:', error);
+      toast.error('Không thể lấy chi tiết bài làm!');
+      setEditDetailModal({
+        isOpen: false,
+        result: null,
+        isLoading: false,
+      });
+    }
   };
 
   const closeEditDetailModal = () => {
@@ -405,7 +449,6 @@ export default function GradingTab({
   const hasWarnings = results.filter(r => r.warnings && r.warnings.length > 0).length;
 
   // ===== RENDER =====
-
   // Loading
   if (loading) {
     return (
@@ -436,6 +479,8 @@ export default function GradingTab({
       </div>
     );
   }
+
+  const displayResults = searchTerm.trim() || filterStatus !== 'all' ? filteredResults : results;
 
   return (
     <div className="space-y-6">
@@ -507,15 +552,14 @@ export default function GradingTab({
 
       {/* ===== SEARCH & FILTER ===== */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <form onSubmit={handleSearch} className="flex-1 relative">
+        <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
             placeholder="Tìm kiếm theo tên hoặc SBD..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#43a047]
-            focus:border-transparent"
+            onChange={(e) => handleSearch(e.target.value)}
+            className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#43a047] focus:border-transparent"
           />
           {searchTerm && (
             <button
@@ -526,7 +570,7 @@ export default function GradingTab({
               <X className="w-4 h-4" />
             </button>
           )}
-        </form>
+        </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <select
@@ -538,13 +582,6 @@ export default function GradingTab({
             <option value="VALID">Đã chấm</option>
             <option value="NEED_REVIEW">Cần xem lại</option>
           </select>
-          <button
-            type="submit"
-            onClick={handleSearch}
-            className="px-4 py-2.5 text-white bg-[#43a047] rounded-lg hover:bg-[#2e7d32] transition-colors"
-          >
-            Tìm
-          </button>
         </div>
       </div>
 
@@ -565,7 +602,7 @@ export default function GradingTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {results.map((result, index) => {
+              {displayResults.map((result, index) => {
                 const score = result.total_score || 0;
                 const scoreBadge = getScoreBadge(score);
                 const hasWarning = result.warnings && result.warnings.length > 0;
@@ -578,7 +615,7 @@ export default function GradingTab({
                   <React.Fragment key={result.result_id}>
                     <tr className={`hover:bg-gray-50 transition-colors ${hasWarning ? 'bg-yellow-50/50' : ''}`}>
                       <td className="px-4 py-3 text-sm text-gray-500">
-                        {pagination ? (pagination.current_page - 1) * pagination.page_size + index + 1 : index + 1}
+                        {index + 1}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-800">
                         {result.student_code || '---'}
@@ -782,14 +819,14 @@ export default function GradingTab({
         </div>
 
         {/* ===== PAGINATION ===== */}
-        {pagination && pagination.total_pages > 1 && (
+        {pagination && pagination.total_pages > 1 && !searchTerm && filterStatus === 'all' && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
             <p className="text-sm text-gray-500">
               Hiển thị {results.length} / {pagination.total_records} kết quả
             </p>
             <div className="flex gap-1">
               <button
-                onClick={() => onSearch(searchTerm, pagination.current_page - 1)}
+                onClick={() => onSearch('', pagination.current_page - 1)}
                 disabled={pagination.current_page <= 1}
                 className="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50
                 disabled:cursor-not-allowed"
@@ -820,8 +857,7 @@ export default function GradingTab({
         onClose={closeImageModal}
       />
 
-      {/* ===== MODAL CHỈNH SỬA CHI TIẾT THÔNG MINH ===== */}
-      {/* Modal chỉnh sửa chi tiết thông minh */}
+      {/* ===== MODAL CHỈNH SỬA CHI TIẾT ===== */}
       <EditResultModal
         isOpen={editDetailModal.isOpen}
         result={editDetailModal.result}
@@ -833,7 +869,6 @@ export default function GradingTab({
       />
 
       {/* ===== MODAL XÓA KẾT QUẢ ===== */}
-      {/* Modal xác nhận xóa */}
       <ConfirmDeleteModal
         isOpen={deleteModal.isOpen}
         onClose={handleDeleteCancel}

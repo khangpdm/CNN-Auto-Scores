@@ -10,7 +10,7 @@ export function useSessionDetail() {
   const { examId, sessionId } = useParams();
   const navigate = useNavigate();
 
-  // Dùng Ref để ghi nhớ các API ĐÃ ĐƯỢC GỌI (Không sợ Re-render, Không sợ API Lỗi gây spam)
+  // Dùng Ref để ghi nhớ các API ĐÃ ĐƯỢC GỌI
   const fetchedRef = useRef({
     session: false,
     students: false,
@@ -283,22 +283,14 @@ const scanPapers = useCallback(async (files) => {
 
   const exportResult = useCallback(async () => {
     try {
-      const blob = await gradingService.exportResults(sessionId);
-
-      let sessionName = session?.session_name || session?.name;
-
-      if (!sessionName) {
-        try {
-          const response = await sessionService.getSessionDetail(examId, sessionId);
-          const sessionData = response.data || response;
-          sessionName = sessionData?.session_name || sessionData?.name;
-          setSession(sessionData);
-        } catch (error) {
-          console.warn('Không thể lấy tên session:', error);
-          sessionName = `Session_${sessionId}`;
-        }
+      if (!session) {
+        await fetchSession();
       }
 
+      const blob = await gradingService.exportResults(sessionId);
+
+      // 👇 Lấy tên session từ state
+      const sessionName = session?.session_name || session?.name || `${sessionId}`;
       const safeFileName = sessionName.replace(/[^a-zA-Z0-9_\-]/g, '_');
       const dateStr = new Date().toISOString().slice(0, 10);
       const filename = `BangDiem_${safeFileName}_${dateStr}.xlsx`;
@@ -311,13 +303,11 @@ const scanPapers = useCallback(async (files) => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-
-      toast.success(`Xuất file "${filename}" thành công!`);
     } catch (error) {
       console.error('Lỗi xuất file:', error);
-      toast.error(error.response?.data?.message || 'Không thể xuất file!');
+      toast.error('Không thể xuất file!');
     }
-  }, [sessionId, session, examId]);
+  }, [sessionId, session, fetchSession]);
 
   const getResultDetail = useCallback(async (resultId) => {
     try {
