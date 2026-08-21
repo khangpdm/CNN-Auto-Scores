@@ -65,7 +65,7 @@ export default function ExamGuide() {
             <Download className="w-4 h-4 text-[#43a047]" />
             <span className="font-medium">Tải về các mẫu phiếu:</span>
             <a
-              href="https://drive.google.com/drive/folders/1rMomFXu2l5AjYZoXBEzqgdhI9mIkCvjQ"
+              href="https://drive.google.com/drive/folders/1p-syZ-YsEzwCXVWbSUumMVD6HxwCPHdG?usp=sharing"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[#43a047] font-semibold hover:underline"
@@ -74,15 +74,9 @@ export default function ExamGuide() {
             </a>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-700">
-            <FileSpreadsheet className="w-4 h-4 text-[#43a047]" />
-            <Link to="/mau-phieu" className="text-[#43a047] font-semibold hover:underline">
-              Danh sách các mẫu phiếu
-            </Link>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gray-700">
             <HelpCircle className="w-4 h-4 text-[#43a047]" />
             <a
-              href="https://marker.olm.vn/chu-de/2130393440"
+              href=""
               target="_blank"
               rel="noopener noreferrer"
               className="text-[#43a047] font-semibold hover:underline"

@@ -394,7 +394,8 @@ export default function HomePage() {
                   <span className="text-[#43a047] font-bold">•</span>
                   <p>
                     Các mẫu trắc nghiệm chấm trên ASC Marker: {' '}
-                    <a href="#" className="text-[#43a047] font-semibold hover:underline">
+                    <a href="https://drive.google.com/drive/folders/1p-syZ-YsEzwCXVWbSUumMVD6HxwCPHdG?usp=sharing"
+                     className="text-[#43a047] font-semibold hover:underline">
                       Tải các mẫu phiếu tại đây.
                     </a>
                   </p>
@@ -414,24 +415,6 @@ export default function HomePage() {
                     Hướng dẫn chấm thi trắc nghiệm.{' '}
                     <a href="#" className="text-[#43a047] font-semibold hover:underline">
                       xem tại đây.
-                    </a>
-                  </p>
-                </div>
-                <div className="flex items-start gap-3 text-gray-700">
-                  <span className="text-[#43a047] font-bold">•</span>
-                  <p>
-                    Hướng dẫn chấm môn thi có phần tự chọn (môn Tin học),{' '}
-                    <a href="#" className="text-[#43a047] font-semibold hover:underline">
-                      xem tại đây.
-                    </a>
-                  </p>
-                </div>
-                <div className="flex items-start gap-3 text-gray-700">
-                  <span className="text-[#43a047] font-bold">•</span>
-                  <p>
-                    Video tập huấn Chấm thi trắc nghiệm trên ASC Marker,{' '}
-                    <a href="#" className="text-[#43a047] font-semibold hover:underline">
-                      xem lại tại đây.
                     </a>
                   </p>
                 </div>
