@@ -294,9 +294,11 @@ export default function HomePage() {
               </ul>
               <Link
                 to="/ky-thi"
-                className="inline-flex items-center gap-2 px-8 py-4 text-white font-semibold bg-gradient-to-r from-[#43a047] to-[#2e7d32] rounded-xl hover:from-[#388e3c] hover:to-[#1b5e20] transition-all shadow-lg hover:shadow-xl"
+                className="inline-flex items-center gap-2 px-8 py-4 text-white font-semibold bg-gradient-to-r
+                from-[#43a047] to-[#2e7d32] rounded-xl hover:from-[#388e3c] hover:to-[#1b5e20] transition-all
+                shadow-lg hover:shadow-xl"
               >
-                <span className="text-xl">+</span>
+                <span className="Tạo text-xl">+</span>
                 Tạo & quản lý kỳ thi
               </Link>
             </div>
