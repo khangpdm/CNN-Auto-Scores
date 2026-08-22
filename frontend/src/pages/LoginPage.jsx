@@ -25,7 +25,7 @@ export default function LoginPage() {
     try {
       await authService.login(username, password);
       toast.success('Đăng nhập thành công!');
-      navigate('/trang-chu');
+      navigate('/');
     } catch (error) {
       const errorMsg = error.response?.data?.detail || 'Đăng nhập thất bại. Vui lòng kiểm tra lại!';
       toast.error(errorMsg);
