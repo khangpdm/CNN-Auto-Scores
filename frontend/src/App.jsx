@@ -29,7 +29,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/thong-tin-tai-khoan" element={<ProfilePage />} />
           <Route path="/ky-thi" element={<ExamPage />} />
-          <Route path="/ky-thi/:examId" element={<SessionPage />} />
+          <Route path="/ky-thi/:id" element={<SessionPage />} />
           <Route path="/ky-thi/:examId/session/:sessionId" element={<GradingPage />} />
           {/*<Route path="/thong-tin-tai-khoan" element={<ProfilePage />} />*/}
           {/*<Route path="/cai-dat" element={<SettingsPage />} />*/}
