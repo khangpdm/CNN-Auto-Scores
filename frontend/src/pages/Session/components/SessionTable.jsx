@@ -160,7 +160,7 @@ export default function SessionTable({
                       <div className="flex items-center gap-3 flex-wrap">
                         <Link
                           to={`/ky-thi/${examId}/session/${session.id}`}
-                          className="font-semibold text-gray-800 hover:text-[#43a047] hover:underline truncate transition-colors"
+                          className="font-semibold text-gray-800 hover:text-[#43a047] transition-colors"
                         >
                           {sessionName}
                         </Link>
