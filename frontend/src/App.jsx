@@ -31,7 +31,7 @@ export default function App() {
           <Route path="/ky-thi" element={<ExamPage />} />
           <Route path="/ky-thi/:id" element={<SessionPage />} />
           <Route path="/ky-thi/:examId/session/:sessionId" element={<GradingPage />} />
-          {/*<Route path="/thong-tin-tai-khoan" element={<ProfilePage />} />*/}
+          <Route path="/thong-tin-tai-khoan" element={<ProfilePage />} />
           {/*<Route path="/cai-dat" element={<SettingsPage />} />*/}
         </Route>
 
