@@ -158,9 +158,12 @@ export default function SessionTable({
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 flex-wrap">
-                        <h3 className="font-semibold text-gray-800 truncate">
+                        <Link
+                          to={`/ky-thi/${examId}/session/${session.id}`}
+                          className="font-semibold text-gray-800 hover:text-[#43a047] hover:underline truncate transition-colors"
+                        >
                           {sessionName}
-                        </h3>
+                        </Link>
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadge.color}`}>
                           {statusBadge.label}
                         </span>
