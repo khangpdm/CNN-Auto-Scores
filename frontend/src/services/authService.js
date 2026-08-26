@@ -62,7 +62,7 @@ export const authService = {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('user_info');
-      window.location.href = '/trang-chu';
+      window.location.href = '/';
     }
   },
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status, Request
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from sqlalchemy import or_
@@ -9,6 +9,7 @@ from database.connection import get_db
 from database.models import (
     ExamSession, Student, ExamShared, ExamPermission
 )
+from rate_limiting import limiter
 from routers.auth import get_current_user
 from services.excel_service import parse_and_save_student_from_excel
 
@@ -62,7 +63,9 @@ def check_session_permission(
     return session
 
 @routers.post("/session/{session_id}/upload_students", summary="Upload Excel danh sách học sinh")
+@limiter.limit("10/minute")
 async def upload_student_excel(
+        request: Request,
         session_id: int,
         file_excel: UploadFile = File(...),
         db: Session = Depends(get_db),
@@ -114,7 +117,9 @@ async def upload_student_excel(
     }
 
 @routers.get("/session/{session_id}/students", summary="Lấy danh sách học sinh")
+@limiter.limit("100/minute")
 def get_students_by_session(
+    request: Request,
     session_id: int,
     search: Optional[str] = Query(None, description="Tìm kiếm theo Tên hoặc Số báo danh (SBD)"),
     page: int = Query(1, ge = 1, description="Trang hiện tại (Mặc định 1)"),
@@ -153,7 +158,9 @@ def get_students_by_session(
     }
 
 @routers.post("/session/{session_id}/students", summary="Thêm thủ công 1 học sinh")
+@limiter.limit("10/minute")
 def create_manual_student(
+        request: Request,
         session_id: int,
         data: CreateStudentSchema,
         db: Session = Depends(get_db),
@@ -194,7 +201,9 @@ def create_manual_student(
     }
 
 @routers.put("/student/{student_id}", summary="Sửa thông tin 1 học sinh")
+@limiter.limit("10/minute")
 def update_student(
+        request: Request,
         student_id: int,
         data: UpdateStudentSchema,
         db:Session = Depends(get_db),
@@ -241,7 +250,9 @@ def update_student(
     }
 
 @routers.delete("/students/{student_id}", summary="Xóa 1 học sinh")
+@limiter.limit("5/minute")
 def delete_student(
+        request: Request,
         student_id: int,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user),
@@ -266,7 +277,9 @@ def delete_student(
     }
 
 @routers.delete("/sessions/{session_id}/students", summary="Xóa tất cả học sinh trong đợt thi")
+@limiter.limit("5/minute")
 def clear_student_session(
+        request: Request,
         session_id: str,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user),

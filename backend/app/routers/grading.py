@@ -1,20 +1,15 @@
-import base64
 import os
-import uuid
 import zipfile
 from io import BytesIO
 from typing import List
 
-import cv2
-import numpy as np
 from datetime import datetime
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, BackgroundTasks
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, BackgroundTasks, Request
 from sqlalchemy.orm import Session
-from streamlit.runtime.caching import storage
 
 from database.connection import get_db
 from database.models import AnswerKey, ExamSession, ScanBatch, Student, StudentResult, User
+from rate_limiting import limiter
 from routers.auth import get_current_user
 from services.grading_service import process_single_image, process_files_background
 
@@ -26,7 +21,9 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
 @router.post("/sessions/{session_id}/scan", summary="Tải ảnh bài thi lên (hỗ trợ 1 ảnh, nhiều ảnh và ZIP)")
+@limiter.limit("10/minute")
 async def scan_exam_sheets(
+    request: Request,
     session_id: int,
     background_tasks: BackgroundTasks = BackgroundTasks(),
     files: List[UploadFile] = File(..., description="Chọn 1 hoặc nhiều file ảnh (jpg, png) hoặc file ZIP"),
@@ -189,7 +186,9 @@ async def handle_zip_file(
         raise HTTPException(400, detail = f"Lỗi xử lý ZIP: {str(e)}")
 
 @router.get("/scan-batches/{batch_id}/status", summary="Kiểm tra tiến độ xử lý")
+@limiter.limit("100/minute")
 def get_batch_status(
+    request: Request,
     batch_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

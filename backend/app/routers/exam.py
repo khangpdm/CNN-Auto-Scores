@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from streamlit import status
+from rate_limiting import limiter
 
 from database.connection import get_db
-from database.models import Exam, ExamStatus, SessionStatus, User, ExamSession, ExamShared, \
+from database.models import Exam, ExamStatus, SessionStatus, User, ExamShared, \
     ExamPermission, ExamSession, Student, StudentResult, AnswerKey, ScanBatch
 from routers.auth import get_current_user
 
@@ -36,10 +36,12 @@ class UpdateSessionSchema(BaseModel):
     status: Optional[SessionStatus] = None
 
 @routers.post("", summary="Tạo kỳ thi mới")
+@limiter.limit("10/minute")
 def create_exam(
-        data: CreateExamSchema,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user),
+    request: Request,
+    data: CreateExamSchema,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
     existing = db.query(Exam).filter(
         Exam.created_by == current_user.id,
@@ -65,11 +67,13 @@ def create_exam(
     }
 
 @routers.post("/{exam_id}/share", summary="Chia sẻ quyền quản lý‌/Chấm bài cho giáo viên")
+@limiter.limit("10/minute")
 def share_exam_to_teacher(
-        exam_id: int,
-        data: ShareExamSchema,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user),
+    request: Request,
+    exam_id: int,
+    data: ShareExamSchema,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if not exam:
@@ -113,9 +117,11 @@ def share_exam_to_teacher(
     }
 
 @routers.get("", summary="Lấy danh sách các kỳ thi của tôi hoặc đuợc chia sẻ")
+@limiter.limit("100/minute")
 def get_my_exams(
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user),
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
     my_exams = db.query(Exam).filter(Exam.created_by == current_user.id).all()
 
@@ -138,10 +144,12 @@ def get_my_exams(
     }
 
 @routers.get("/{exam_id}", summary="Lấy thông tin chi tiết 1 kỳ thi")
+@limiter.limit("100/minute")
 def get_exam_detail(
-        exam_id: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user),
+    request: Request,
+    exam_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if not exam:
@@ -164,11 +172,13 @@ def get_exam_detail(
     }
 
 @routers.post("/{exam_id}/sessions", summary="Tạo Đợt thi mới")
+@limiter.limit("10/minute")
 def create_exam_session(
-        exam_id:int,
-        data: CreateSessionSchema,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user),
+    request: Request,
+    exam_id:int,
+    data: CreateSessionSchema,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
     existing = db.query(Exam).filter(
         Exam.id == exam_id,
@@ -201,11 +211,13 @@ def create_exam_session(
     }
 
 @routers.put("/{exam_id}", summary="Cập nhật tên/ mô tả kỳ thi")
+@limiter.limit("10/minute")
 def update_exam(
-        exam_id: int,
-        data: UpdateExamSchema,
-        db:Session = Depends(get_db),
-        current_user = Depends(get_current_user),
+    request: Request,
+    exam_id: int,
+    data: UpdateExamSchema,
+    db:Session = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if not exam:
@@ -233,10 +245,12 @@ def update_exam(
     }
 
 @routers.delete("/{exam_id}",summary="Xóa kỳ thi")
+@limiter.limit("5/minute")
 def delete_exam(
-        exam_id: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user),
+    request: Request,
+    exam_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if not exam:
@@ -254,10 +268,12 @@ def delete_exam(
     }
 
 @routers.get("/{exam_id}/sessions", summary="Lấy danh sách các Đợt thi của kỳ thi này")
+@limiter.limit("100/minute")
 def get_exam_session(
-        exam_id: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user),
+    request: Request,
+    exam_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if not exam:
@@ -277,12 +293,14 @@ def get_exam_session(
     }
 
 @routers.put("/{exam_id}/sessions/{session_id}", summary="Cập nhật tên/thông tin đợt thi")
+@limiter.limit("10/minute")
 def update_exam_session(
-        exam_id: int,
-        session_id: int,
-        data: UpdateSessionSchema,
-        db: Session = Depends(get_db),
-        current_user=Depends(get_current_user),
+    request: Request,
+    exam_id: int,
+    session_id: int,
+    data: UpdateSessionSchema,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
     # 1. Tìm đợt thi theo session_id và exam_id
     session = db.query(ExamSession).filter(
@@ -292,7 +310,7 @@ def update_exam_session(
 
     if not session:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Đợt thi không tồn tại trong kỳ thi này"
         )
 
@@ -306,7 +324,7 @@ def update_exam_session(
 
         if not share_perm or share_perm.permission != ExamPermission.EDITOR:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
+                status_code=403,
                 detail="Bạn không có quyền chỉnh sửa đợt thi này"
             )
 
@@ -331,11 +349,13 @@ def update_exam_session(
 
 
 @routers.delete("/{exam_id}/sessions/{session_id}", summary="Xóa đợt thi")
+@limiter.limit("5/minute")
 def delete_exam_session(
-        exam_id: int,
-        session_id: int,
-        db: Session = Depends(get_db),
-        current_user=Depends(get_current_user),
+    request: Request,
+    exam_id: int,
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
     session = db.query(ExamSession).filter(
         ExamSession.id == session_id,
@@ -347,7 +367,7 @@ def delete_exam_session(
 
     if session.created_by != current_user.id and session.exam.created_by != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=403,
             detail="Chỉ chủ sở hữu mới có quyền xóa đợt thi này"
         )
 
@@ -367,11 +387,13 @@ def delete_exam_session(
     }
 
 @routers.get("/{exam_id}/sessions/{session_id}", summary="Lấy thông tin chi tiết 1 đợt thi")
+@limiter.limit("100/minute")
 def get_exam_detail(
-        session_id: int,
-        exam_id: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user),
+    request: Request,
+    session_id: int,
+    exam_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
     session = db.query(ExamSession).filter(ExamSession.id == session_id).first()
     if not session:

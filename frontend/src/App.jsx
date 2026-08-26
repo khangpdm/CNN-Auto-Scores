@@ -11,6 +11,7 @@ import ExamPage from './pages/Exam/index.jsx';
 import SessionPage from './pages/Session/index';
 import AppLayout from "@/components/layout/AppLayout.jsx";
 import GradingPage from './pages/Grading/index';
+import ProfilePage from "@/pages/ProfilePage.jsx";
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
         </Route>
 
         <Route element={<ProtectedRoute />}>
+          <Route path="/thong-tin-tai-khoan" element={<ProfilePage />} />
           <Route path="/ky-thi" element={<ExamPage />} />
           <Route path="/ky-thi/:examId" element={<SessionPage />} />
           <Route path="/ky-thi/:examId/session/:sessionId" element={<GradingPage />} />

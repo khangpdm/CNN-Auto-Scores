@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from database.connection import get_db
 from database.models import User, UserRole, AuditLog
+from rate_limiting import limiter
 
 SECRET_KEY = "YOUR_SUPER_SECRET_KEY_PRODUCTION_CHANGE_ME"
 REFRESH_SECRET_KEY = "YOUR_SUPER_REFRESH_SECRET_KEY_PRODUCTION_CHANGE_ME"
@@ -64,9 +65,9 @@ def create_access_token(data: dict):
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire, "type": "access"})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
@@ -94,7 +95,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 # --- Endpoints ---
 @router.post("/register", summary="Đăng ký tài khoản giáo viên")
-def register(data: RegisterSchema, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def register(request: Request, data: RegisterSchema, db: Session = Depends(get_db)):
     if db.query(User).filter(User.username == data.username).first():
         raise HTTPException(status_code=400, detail="Username đã tồn tại!")
     if db.query(User).filter(User.email == data.email).first():
@@ -114,7 +116,8 @@ def register(data: RegisterSchema, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponseSchema, summary="Đăng nhập")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == form_data.username).first()
 
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -156,7 +159,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     }
 
 @router.post("/refresh", summary="Lấy access_token mới bằng refresh_token")
-def refresh_token(body: RefreshTokenRequestSchema, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def refresh_token(request: Request, body: RefreshTokenRequestSchema, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(401, "Refresh token không hợp lệ hoặc đã hết hạn")
     try:
         payload = jwt.decode(body.refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
@@ -183,14 +187,16 @@ def refresh_token(body: RefreshTokenRequestSchema, db: Session = Depends(get_db)
     }
 
 @router.post("/logout", summary="Đăng xuất")
-def logout(current_user: User = Depends(get_current_user)):
+@limiter.limit("10/minute")
+def logout(request: Request, current_user: User = Depends(get_current_user)):
     return {
         "status": "success",
         "message": "Đăng xuất thành công"
     }
 
 @router.get("/me", summary="Lấy thông tin tài khoản hiện tại")
-def get_me(current_user: User = Depends(get_current_user)):
+@limiter.limit("100/minute")
+def get_me(request: Request, current_user: User = Depends(get_current_user)):
     return {
         "status": "success",
         "data": {
@@ -204,7 +210,9 @@ def get_me(current_user: User = Depends(get_current_user)):
     }
 
 @router.put("/profile", summary="Đổi thông tin cá nhân")
+@limiter.limit("10/minute")
 def update_profile(
+        request: Request,
         data:ProfileUpdateSchema,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
@@ -232,7 +240,9 @@ def update_profile(
     }
 
 @router.put("/change-password", summary="Đổi mật khẩu")
+@limiter.limit("10/minute")
 def change_password(
+    request: Request,
     data: ChangePasswordSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)

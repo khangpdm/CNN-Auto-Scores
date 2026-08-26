@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Request
 from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -8,6 +8,7 @@ from database.models import (
     ExamSession, AnswerKey, SessionStatus,
     ExamShared, ExamPermission
 )
+from rate_limiting import limiter
 from routers.auth import get_current_user
 from services.excel_service import parse_and_save_answer_to_db
 
@@ -61,7 +62,9 @@ def check_session_permission(
     return session
 
 @routers.post("/session/{session_id}/answers/upload_excels", summary="Upload Excel đáp án")
+@limiter.limit("10/minute")
 async def upload_exam_answers(
+        request: Request,
         session_id: int,
         file_excel: UploadFile = File(...),
         db: Session = Depends(get_db),
@@ -111,10 +114,12 @@ async def upload_exam_answers(
     }
 
 @routers.get("/sessions/{session_id}/answers", summary="Lấy danh sách Mã đề & Đáp án chuẩn hiện có")
+@limiter.limit("100/minute")
 def get_answer_keys_by_session(
-        session_id: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+    request: Request,
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
     # Kiểm tra quyền xem
     session_obj = check_session_permission(session_id, current_user.id, db)
@@ -129,11 +134,13 @@ def get_answer_keys_by_session(
     }
 
 @routers.post("/sessions/{session_id}/answers", summary="Tạo/Thêm thủ công 1 Mã đề mới + Bộ đáp án")
+@limiter.limit("10/minute")
 def create_manual_answer_key(
-        session_id: int,
-        data: CreateAnsswerKeySchema,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user),
+    request: Request,
+    session_id: int,
+    data: CreateAnsswerKeySchema,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
     session_obj = check_session_permission(session_id, current_user.id, db, required_permission=ExamPermission.EDITOR)
 
@@ -169,11 +176,13 @@ def create_manual_answer_key(
     }
 
 @routers.put("/answers/{answer_key_id}", summary="Sửa đáp án hoặc điều chỉnh điểm từng câu của 1 Mã đề")
+@limiter.limit("10/minute")
 def update_answer_key(
-        answer_key_id: int,
-        data: UpdateAnswerKeySchema,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+    request: Request,
+    answer_key_id: int,
+    data: UpdateAnswerKeySchema,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
     answer_key = db.query(AnswerKey).filter(AnswerKey.id == answer_key_id).first()
     if not answer_key:
@@ -211,10 +220,12 @@ def update_answer_key(
     }
 
 @routers.delete("/answers/{answer_key_id}", summary="Xóa 1 Mã đề")
+@limiter.limit("5/minute")
 def delete_answer_key(
-        answer_key_id: int,
-        db: Session = Depends(get_db),
-        current_user=Depends(get_current_user)
+    request: Request,
+    answer_key_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
     answer_key = db.query(AnswerKey).filter(AnswerKey.id == answer_key_id).first()
     if not answer_key:

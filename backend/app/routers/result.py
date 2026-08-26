@@ -6,7 +6,7 @@ from typing import List, Optional, Dict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -15,6 +15,7 @@ from database.connection import get_db
 from database.models import (
     ExamSession, StudentResult, Student, ExamShared, ExamPermission, User
 )
+from rate_limiting import limiter
 from routers.auth import get_current_user
 from services.results_service import (
     get_result_list,
@@ -114,7 +115,9 @@ def check_session_permission(
     return session
 
 @router.get("/sessions/{session_id}/results", summary="Lấy danh sách kết quả bài thi")
+@limiter.limit("100/minute")
 def get_results(
+        request: Request,
         session_id: int,
         status_filter: str = Query("ALL", enum=["ALL", "WARNING_ONLY", "VALID_ONLY"]),
         search: Optional[str] = Query(None, description="Tìm theo SBD hoặc tên"),
@@ -140,7 +143,9 @@ def get_results(
 
 
 @router.get("/results/{result_id}", summary="Chi tiết 1 bài thi")
+@limiter.limit("10/minute")
 def get_result_detail_app(
+        request: Request,
         result_id: int,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
@@ -160,7 +165,9 @@ def get_result_detail_app(
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.put("/result/{result_id}", summary="Giáo viên chỉnh sửa tay")
+@limiter.limit("10/minute")
 def manual_edit(
+        request: Request,
         result_id: int,
         edit_data: ManualEditRequest,
         db: Session = Depends(get_db),
@@ -186,7 +193,9 @@ def manual_edit(
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.delete("/results/{result_id}", summary="Xóa kết quả bài thi này")
+@limiter.limit("5/minute")
 def delete_single_student_result(
+        request: Request,
         result_id: int,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
@@ -206,7 +215,9 @@ def delete_single_student_result(
     }
 
 @router.delete("/sessions/{session_id}/results/clear", summary="Xóa toàn bộ kết quả bài chấm trong Đợt thi")
+@limiter.limit("5/minute")
 def clear_all_session_results(
+        request: Request,
         session_id: int,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
@@ -223,7 +234,9 @@ def clear_all_session_results(
     }
 
 @router.get("/sessions/{session_id}/export-excel", summary="Xuất file Excel Bảng điểm tổng hợp")
+@limiter.limit("100/minute")
 def export_session_results_excel(
+        request: Request,
         session_id: int,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
