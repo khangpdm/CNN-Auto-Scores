@@ -105,10 +105,14 @@ export function useSessionDetail() {
   const getCorrectImageUrl = (url) => {
     if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    if (url.startsWith('/storage/') || url.startsWith('/static/')) {
-      return `${API_URL}${url}`;
+
+    const cleanPath = url.replace(/^\/+/, '');
+
+    if (cleanPath.startsWith('storage/') || cleanPath.startsWith('static/')) {
+      return `${API_URL}/${cleanPath}`;
     }
-    return `${API_URL}/storage/processed/${url}`;
+
+    return `${API_URL}/storage/processed/${cleanPath}`;
   };
 
   const fetchResults = useCallback(async (page = 1) => {
