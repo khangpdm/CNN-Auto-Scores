@@ -1,5 +1,5 @@
 import os
-
+from pathlib import Path
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -25,13 +25,17 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# STORAGE_DIR = "storage"
-# os.makedirs(os.path.join(STORAGE_DIR, "uploads"), exist_ok=True)
-# os.makedirs(os.path.join(STORAGE_DIR, "processed"), exist_ok=True)
-#
-# app.mount("/static", StaticFiles(directory=STORAGE_DIR), name="static")
-#
-# app.mount("/storage", StaticFiles(directory=STORAGE_DIR), name="storage")
+BASE_DIR = Path(__file__).resolve().parent
+
+STORAGE_DIR = BASE_DIR / "storage"
+UPLOADS_DIR = STORAGE_DIR / "uploads"
+PROCESSED_DIR = STORAGE_DIR / "processed"
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+os.makedirs(PROCESSED_DIR, exist_ok=True)
+
+app.mount("/storage", StaticFiles(directory=str(STORAGE_DIR)), name="storage")
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+app.mount("/processed", StaticFiles(directory=str(PROCESSED_DIR)), name="processed")
 
 
 origins = [
