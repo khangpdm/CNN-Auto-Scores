@@ -781,26 +781,6 @@ export function EditResultModal({
   );
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://asc-marker.onrender.com';
-
-const getCorrectImageUrl = (url) => {
-  if (!url) return '';
-
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-
-  if (url.startsWith('/storage/') || url.startsWith('/static/')) {
-    return `${API_URL}${url}`;
-  }
-
-  if (!url.startsWith('/')) {
-    return `${API_URL}/storage/processed/${url}`;
-  }
-
-  return url;
-};
-
 export function ImageModal({ isOpen, imageUrl, title, onClose }){
   if (!isOpen) return null;
 
@@ -810,11 +790,11 @@ export function ImageModal({ isOpen, imageUrl, title, onClose }){
     }
   };
 
+  // Hàm lấy URL mới để tránh cache
   const getFreshImageUrl = (url) => {
     if (!url) return '';
-    const cleanUrl = getCorrectImageUrl(url);
-    const separator = cleanUrl.includes('?') ? '&' : '?';
-    return `${cleanUrl}${separator}t=${new Date().getTime()}`;
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}t=${new Date().getTime()}`;
   };
 
   return (
@@ -846,7 +826,6 @@ export function ImageModal({ isOpen, imageUrl, title, onClose }){
               alt={title || 'Ảnh bài làm'}
               className="max-w-full max-h-[70vh] object-contain mx-auto"
               onError={(e) => {
-                console.error('Image load error:', imageUrl);
                 e.target.src = '/placeholder-image.png';
               }}
             />

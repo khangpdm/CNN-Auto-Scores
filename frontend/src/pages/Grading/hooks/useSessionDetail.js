@@ -100,6 +100,17 @@ export function useSessionDetail() {
   }, [sessionId]);
 
   // 4. Fetch Results
+  const API_URL = import.meta.env.VITE_API_URL || 'https://asc-marker.onrender.com';
+
+  const getCorrectImageUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('/storage/') || url.startsWith('/static/')) {
+      return `${API_URL}${url}`;
+    }
+    return `${API_URL}/storage/processed/${url}`;
+  };
+
   const fetchResults = useCallback(async (page = 1) => {
     if (!sessionId) return;
     try {
@@ -109,12 +120,21 @@ export function useSessionDetail() {
         page_size: 50,
       });
       const responseData = response.data || response;
-      setResults(responseData.items || []);
+
+      const fixedItems = (responseData.items || []).map(item => ({
+        ...item,
+        raw_url: getCorrectImageUrl(item.raw_url),
+        image_url: getCorrectImageUrl(item.image_url),
+      }));
+
+      console.log('✅ Fixed image_url:', fixedItems[0]?.image_url); // Debug
+
+      setResults(fixedItems);
       setResultsPagination({
         current_page: page,
         page_size: 50,
-        total_records: responseData.items.length,
-        total_pages: Math.ceil(responseData.items.length / 50) || 1,
+        total_records: fixedItems.length,
+        total_pages: Math.ceil(fixedItems.length / 50) || 1,
       });
     } catch (error) {
       console.error('Lỗi lấy kết quả:', error);

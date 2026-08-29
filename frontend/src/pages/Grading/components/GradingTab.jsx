@@ -175,35 +175,22 @@ export default function GradingTab({
   };
 
   // ===== HANDLER XEM ẢNH =====
-const API_URL = import.meta.env.VITE_API_URL || 'https://asc-marker.onrender.com';
-
-const getCorrectImageUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('/storage/') || url.startsWith('/static/')) {
-    return `${API_URL}${url}`;
-  }
-  return `${API_URL}/storage/processed/${url}`;
-};
-
-// ✅ Gộp cả 2 hàm lại
-const getFreshImageUrl = (url) => {
-  if (!url) return '';
-  const correctUrl = getCorrectImageUrl(url);
-  return `${correctUrl}${correctUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
-};
-
-const openImageModal = (imageUrl, title) => {
-  if (!imageUrl) {
-    toast.error('Không có ảnh để hiển thị!');
-    return;
-  }
-  setImageModal({
-    isOpen: true,
-    imageUrl: getFreshImageUrl(imageUrl), // ✅ Đã sửa
-    title: title || 'Ảnh bài làm',
-  });
-};
+  const getFreshImageUrl = (url) => {
+    if (!url) return '';
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}t=${new Date().getTime()}`;
+  };
+  const openImageModal = (imageUrl, title) => {
+    if (!imageUrl) {
+      toast.error('Không có ảnh để hiển thị!');
+      return;
+    }
+    setImageModal({
+      isOpen: true,
+      imageUrl: getFreshImageUrl(imageUrl),
+      title: title || 'Ảnh bài làm',
+    });
+  };
 
   const closeImageModal = () => {
     setImageModal({
