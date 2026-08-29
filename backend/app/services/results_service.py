@@ -1,5 +1,5 @@
 import os
-
+from pathlib import Path
 import cv2
 from sqlalchemy.orm import Session
 from database.models import StudentResult, Student, ExamSession, AnswerKey, ScanBatch
@@ -11,16 +11,21 @@ from services.process_ans import find_answer_blocks, process_ans_blocks, process
 from services.process_id import process_id
 from services.process_img import warp_process
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+
 
 def build_full_url(path: Optional[str]) -> Optional[str]:
     if not path:
         return None
+
     if path.startswith("http://") or path.startswith("https://"):
         return path
 
-    # Chuẩn hóa đường dẫn: loại bỏ dấu / ở đầu để không bị thừa khi ghép link
     clean_path = path.lstrip("/")
+
+    if clean_path.startswith("static/") or clean_path.startswith("storage/"):
+        return f"/{clean_path}"
+
     return f"{BASE_URL}/{clean_path}"
 
 def get_result_detail(
@@ -51,8 +56,8 @@ def get_result_detail(
 
     return {
         "result_id": result_id,
-        "raw_url": result.raw_image_path,
-        "image_url": result.processed_image_path,
+        "raw_url": build_full_url(result.raw_image_path),
+        "image_url": build_full_url(result.processed_image_path or result.raw_image_path),
         "student_code": result.student_code,
         "student_name": student.full_name if student else None,
         "test_code": result.detected_test_code,
@@ -254,11 +259,10 @@ def manual_edit_result(
                     processed_filename = f"processed_{raw_filename}"
 
                 # Cập nhật lại URL chuẩn vào Database (Ghi đè hoàn toàn URL lỗi nếu có)
-                processed_url = f"/static/processed/{processed_filename}"
+                processed_url = f"/storage/processed/{processed_filename}"
                 result.processed_image_path = processed_url
 
-                # Quy đổi URL tĩnh thành đường dẫn đĩa vật lý
-                processed_relative_path = processed_url.replace("/static/", "storage/").lstrip("/")
+                processed_relative_path = processed_url.replace("/storage/", "storage/").lstrip("/")
                 target_write_path = os.path.normpath(os.path.join(APP_DIR, processed_relative_path))
 
                 # Thực hiện ghi đè dữ liệu ảnh mới trực tiếp lên file chuẩn
