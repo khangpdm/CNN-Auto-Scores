@@ -559,8 +559,11 @@ export function EditResultModal({
             return `${url}${separator}t=${new Date().getTime()}`;
         }
 
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-        const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+        const baseUrl = import.meta.env.VITE_API_URL;
+
+        let cleanUrl = url.startsWith('/') ? url : `/${url}`;
+        cleanUrl = cleanUrl.replace(/^\/static\//, '/storage/');
+
         const separator = cleanUrl.includes('?') ? '&' : '?';
         return `${baseUrl}${cleanUrl}${separator}t=${new Date().getTime()}`;
     };
