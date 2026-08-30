@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {Upload, X, Download, FileSpreadsheet, Loader2, Maximize2, Save, Eye} from "lucide-react";
 import {toast} from "sonner";
+import { invalidateImageCache } from '@/utils/imageCache';
 
 export function ImportStudentModal ({
     isOpen,
@@ -520,7 +521,6 @@ export function EditResultModal({
             return;
         }
 
-        // 👇 Chuẩn bị data theo đúng format API
         const payload = {
             student_code: formData.student_code.trim(),
             test_code: formData.test_code.trim(),
@@ -531,8 +531,9 @@ export function EditResultModal({
         try {
             await onSave(result.result_id, payload);
             toast.success('Cập nhật thành công!');
+            invalidateImageCache();
             onClose();
-            if (onRefresh) onRefresh();
+            if (onRefresh) await onRefresh(true);
         } catch (error) {
             console.error('Lỗi cập nhật:', error);
             toast.error(error.response?.data?.message || 'Không thể cập nhật!');

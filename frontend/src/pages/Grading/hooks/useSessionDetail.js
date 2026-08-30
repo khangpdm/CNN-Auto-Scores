@@ -5,6 +5,7 @@ import { sessionService } from '@/services/sessionService';
 import { studentService } from '@/services/studentService';
 import { gradingService } from "@/services/gradingService";
 import { answerService } from "@/services/answerService";
+import { invalidateImageCache, getCorrectImageUrl } from '@/utils/imageCache';
 
 export function useSessionDetail() {
   const { examId, sessionId } = useParams();
@@ -118,10 +119,13 @@ export function useSessionDetail() {
     return `${API_URL}/storage/processed/${cleanPath}`;
   };
 
-  const fetchResults = useCallback(async (page = 1) => {
+  const fetchResults = useCallback(async (page = 1, forceRefresh = false) => {
     if (!sessionId) return;
     try {
       setResultsLoading(true);
+      if (forceRefresh) {
+        invalidateImageCache();
+      }
       const response = await gradingService.getResults(sessionId, {
         page: page,
         page_size: 50,
@@ -278,7 +282,7 @@ const scanPapers = useCallback(async (files) => {
     try {
       const response = await gradingService.updateResult(resultId, data);
       toast.success('Cập nhật điểm thành công!');
-      await fetchResults();
+      await fetchResults(1, true);
       return response.data;
     } catch (error) {
       toast.error('Không thể cập nhật điểm!');

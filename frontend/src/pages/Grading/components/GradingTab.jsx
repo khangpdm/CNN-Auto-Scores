@@ -31,6 +31,7 @@ export default function GradingTab({
   const [expandedResult, setExpandedResult] = useState(null);
   const [editingResult, setEditingResult] = useState(null);
   const [editScore, setEditScore] = useState('');
+  const [imageVersion, setImageVersion] = useState(0);
 
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
@@ -185,6 +186,10 @@ export default function GradingTab({
       toast.error('Không có ảnh để hiển thị!');
       return;
     }
+
+    const separator = imageUrl.includes('?') ? '&' : '?';
+    const urlWithVersion = `${imageUrl}${separator}v=${imageVersion}`;
+
     setImageModal({
       isOpen: true,
       imageUrl: getFreshImageUrl(imageUrl),
@@ -368,7 +373,7 @@ export default function GradingTab({
       await onUpdate(resultId, data);
       toast.success('Cập nhật thành công!');
       closeEditDetailModal();
-      if (onRefresh) onRefresh();
+      if (onRefresh) await onRefresh(true);
     } catch (error) {
       console.error('Lỗi cập nhật:', error);
       toast.error(error.response?.data?.message || 'Không thể cập nhật!');
@@ -376,16 +381,19 @@ export default function GradingTab({
     }
   };
 
-  const handleReGrade = async (resultId, newTestCode) => {
-    if (!window.confirm(`Bạn có chắc muốn chấm lại với mã đề "${newTestCode}"?`)) return;
+  const handleRefresh = async () => {
+    if (onRefresh) {
+      await onRefresh(true);
+    }
+  };
 
-    try {
-      await onReGrade(resultId, newTestCode);
-      toast.success('Đã chấm lại với mã đề mới!');
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      console.error('Lỗi chấm lại:', error);
-      toast.error('Không thể chấm lại!');
+  const refreshResults = async (force = false) => {
+    if (force) {
+      setImageVersion(prev => prev + 1);
+      invalidateImageCache();
+    }
+    if (onRefresh) {
+      await onRefresh(force);
     }
   };
 
@@ -469,7 +477,7 @@ export default function GradingTab({
           Upload bài làm ở tab "Bài làm" để hệ thống tự động chấm điểm.
         </p>
         <button
-          onClick={onRefresh}
+          onClick={() => refreshResults(true)}
           className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm text-[#43a047] bg-[#e8f5e9] rounded-lg
           hover:bg-[#c8e6c9] transition-colors"
         >

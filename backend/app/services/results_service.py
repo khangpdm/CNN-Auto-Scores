@@ -1,4 +1,5 @@
 import os
+import uuid
 from pathlib import Path
 import cv2
 from sqlalchemy.orm import Session
@@ -249,29 +250,26 @@ def manual_edit_result(
             )
 
             if new_processed_img is not None:
-                # LUÔN LUÔN bốc từ raw_image_path để sinh tên file chuẩn, tránh lấy lại path lỗi cũ trong DB
-                raw_filename = os.path.basename(result.raw_image_path)
+                timestamp = int(datetime.now().timestamp())
+                unique_id = uuid.uuid4().hex[:8]
+                processed_filename = f"processed_{unique_id}_{timestamp}.jpg"
 
-                # Biến đổi chuẩn xác từ raw_ -> processed_
-                if raw_filename.startswith("raw_"):
-                    processed_filename = raw_filename.replace("raw_", "processed_", 1)
-                else:
-                    processed_filename = f"processed_{raw_filename}"
-
-                # Cập nhật lại URL chuẩn vào Database (Ghi đè hoàn toàn URL lỗi nếu có)
                 processed_url = f"/storage/processed/{processed_filename}"
                 result.processed_image_path = processed_url
 
                 processed_relative_path = processed_url.replace("/storage/", "storage/").lstrip("/")
-                target_write_path = os.path.normpath(os.path.join(APP_DIR, processed_relative_path))
+                target_write_path = APP_DIR / processed_relative_path
+                target_write_path.parent.mkdir(parents=True, exist_ok=True)
+                success = cv2.imwrite(str(target_write_path), new_processed_img)
 
-                # Thực hiện ghi đè dữ liệu ảnh mới trực tiếp lên file chuẩn
-                os.makedirs(os.path.dirname(target_write_path), exist_ok=True)
-                cv2.imwrite(target_write_path, new_processed_img)
-                #print(f"Đã ghi đè hình ảnh thành công vào file chuẩn: {target_write_path}")
+                if success:
+                    print(f"Đã ghi hình ảnh mới thành công: {target_write_path}")
+                    print(f"File size: {target_write_path.stat().st_size} bytes")
+                else:
+                    print(f"Ghi file thất bại: {target_write_path}")
 
         except Exception as draw_err:
-            print(f"❌ Lỗi kết xuất hình ảnh: {str(draw_err)}")
+            print(f"Lỗi kết xuất hình ảnh: {str(draw_err)}")
 
     db.commit()
     db.refresh(result)
