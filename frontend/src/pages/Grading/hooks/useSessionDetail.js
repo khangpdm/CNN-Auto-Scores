@@ -106,9 +106,12 @@ export function useSessionDetail() {
     if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
 
-    const cleanPath = url.replace(/^\/+/, '');
+    let cleanPath = url.replace(/^\/+/, '');
+    if (cleanPath.startsWith('static/')) {
+      cleanPath = cleanPath.replace('static/', 'storage/');
+    }
 
-    if (cleanPath.startsWith('storage/') || cleanPath.startsWith('static/')) {
+    if (cleanPath.startsWith('storage/')) {
       return `${API_URL}/${cleanPath}`;
     }
 

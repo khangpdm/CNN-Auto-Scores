@@ -76,9 +76,6 @@ def check_db_connection(db: Session = Depends(get_db)):
 
 @app.get("/debug/files")
 async def debug_files():
-    """Kiểm tra các file trong storage"""
-    import os
-    from pathlib import Path
 
     storage_dir = Path("storage")
     processed_dir = storage_dir / "processed"
