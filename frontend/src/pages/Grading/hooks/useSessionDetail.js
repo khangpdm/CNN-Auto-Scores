@@ -5,7 +5,7 @@ import { sessionService } from '@/services/sessionService';
 import { studentService } from '@/services/studentService';
 import { gradingService } from "@/services/gradingService";
 import { answerService } from "@/services/answerService";
-import { invalidateImageCache, getCorrectImageUrl } from '@/utils/imageCache';
+import { invalidateImageCache, getCorrectImageUrl } from '@/lib/imageCache.js';
 
 export function useSessionDetail() {
   const { examId, sessionId } = useParams();
