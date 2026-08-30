@@ -735,15 +735,15 @@ export default function GradingTab({
                             <div>
                               <div className="flex items-center justify-between mb-1">
                                 <p className="text-xs text-gray-500">Ảnh bài làm</p>
-                                {result.image_url && (
-                                  <button
-                                    onClick={() => openImageModal(result.image_url, 'Ảnh bài làm')}
-                                    className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                                  >
-                                    <Maximize2 className="w-3 h-3" />
-                                    Phóng to
-                                  </button>
-                                )}
+                                {/*{result.image_url && (*/}
+                                {/*  <button*/}
+                                {/*    onClick={() => openImageModal(result.image_url, 'Ảnh bài làm')}*/}
+                                {/*    className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"*/}
+                                {/*  >*/}
+                                {/*    <Maximize2 className="w-3 h-3" />*/}
+                                {/*    Phóng to*/}
+                                {/*  </button>*/}
+                                {/*)}*/}
                               </div>
                               <div
                                 className="cursor-pointer rounded-lg border border-gray-200 overflow-hidden bg-white"
