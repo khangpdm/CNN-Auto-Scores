@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {Upload, X, Download, FileSpreadsheet, Loader2, Maximize2, Save, Eye} from "lucide-react";
 import {toast} from "sonner";
-import { invalidateImageCache } from '@/utils/imageCache';
+import { invalidateImageCache } from '@/lib/imageCache';
 
 export function ImportStudentModal ({
     isOpen,
