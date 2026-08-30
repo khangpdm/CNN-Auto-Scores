@@ -131,7 +131,7 @@ export function useSessionDetail() {
         image_url: getCorrectImageUrl(item.image_url),
       }));
 
-      console.log('✅ Fixed image_url:', fixedItems[0]?.image_url); // Debug
+      console.log('Fixed image_url:', fixedItems[0]?.image_url); // Debug
 
       setResults(fixedItems);
       setResultsPagination({

@@ -73,6 +73,36 @@ def check_db_connection(db: Session = Depends(get_db)):
     except Exception as e:
         return {"database_status": "Connection failed", "error": str(e)}
 
+
+@app.get("/debug/files")
+async def debug_files():
+    """Kiểm tra các file trong storage"""
+    import os
+    from pathlib import Path
+
+    storage_dir = Path("storage")
+    processed_dir = storage_dir / "processed"
+    uploads_dir = storage_dir / "uploads"
+
+    result = {
+        "storage_exists": storage_dir.exists(),
+        "processed_exists": processed_dir.exists(),
+        "uploads_exists": uploads_dir.exists(),
+        "processed_files": [],
+        "uploads_files": [],
+        "storage_path": str(storage_dir.absolute()),
+    }
+
+    if processed_dir.exists():
+        result["processed_files"] = [f.name for f in processed_dir.glob("*")][:20]
+        result["processed_count"] = len(list(processed_dir.glob("*")))
+
+    if uploads_dir.exists():
+        result["uploads_files"] = [f.name for f in uploads_dir.glob("*")][:20]
+        result["uploads_count"] = len(list(uploads_dir.glob("*")))
+
+    return result
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
