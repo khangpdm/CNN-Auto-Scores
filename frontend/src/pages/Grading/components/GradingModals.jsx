@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
-import {Upload, X, Download, FileSpreadsheet, Loader2, Maximize2, Save, Eye} from "lucide-react";
+import {Upload, X, Download, FileSpreadsheet, Loader2, Save, Eye} from "lucide-react";
 import {toast} from "sonner";
-import { invalidateImageCache } from '@/lib/imageCache';
+import {getCurrentVersion, invalidateImageCache} from '@/lib/imageCache';
 
 export function ImportStudentModal ({
     isOpen,
@@ -791,11 +791,11 @@ export function ImageModal({ isOpen, imageUrl, title, onClose }){
     }
   };
 
-  // Hàm lấy URL mới để tránh cache
   const getFreshImageUrl = (url) => {
     if (!url) return '';
     const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}t=${new Date().getTime()}`;
+    const version = getCurrentVersion();
+    return `${url}${separator}v=${version}&t=${new Date().getTime()}`;
   };
 
   return (

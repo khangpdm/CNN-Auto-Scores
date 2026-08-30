@@ -43,5 +43,8 @@ export const getCorrectImageUrl = (url, forceRefresh = false) => {
 export const invalidateImageCache = () => {
   imageVersion++;
   urlCache.clear();
-  console.log('🔄 Image cache invalidated, new version:', imageVersion);
+  console.log('Image cache invalidated, version:', imageVersion);
+  return imageVersion;
 };
+
+export const getCurrentVersion = () => imageVersion;

@@ -179,7 +179,8 @@ export default function GradingTab({
   const getFreshImageUrl = (url) => {
     if (!url) return '';
     const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}t=${new Date().getTime()}`;
+    const version = getCurrentVersion();
+    return `${url}${separator}v=${version}&t=${new Date().getTime()}`;
   };
   const openImageModal = (imageUrl, title) => {
     if (!imageUrl) {
@@ -373,7 +374,11 @@ export default function GradingTab({
       await onUpdate(resultId, data);
       toast.success('Cập nhật thành công!');
       closeEditDetailModal();
-      if (onRefresh) await onRefresh(true);
+
+      invalidateImageCache();
+      if (onRefresh) {
+        await onRefresh(true); // force refresh
+      }
     } catch (error) {
       console.error('Lỗi cập nhật:', error);
       toast.error(error.response?.data?.message || 'Không thể cập nhật!');
@@ -382,6 +387,7 @@ export default function GradingTab({
   };
 
   const handleRefresh = async () => {
+    invalidateImageCache();
     if (onRefresh) {
       await onRefresh(true);
     }
