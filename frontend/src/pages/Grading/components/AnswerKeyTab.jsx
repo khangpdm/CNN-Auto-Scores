@@ -73,8 +73,9 @@ export default function AnswerKeyTab({
 
     const downloadTemplate = () => {
       const link = document.createElement('a');
-      link.href = '../../public/dap_an.xlsx';
-      link.download = 'ds_thi_sinh.xlsx';
+      // link.href = '../../public/dap_an.xlsx';
+      link.href = '/dap_an.xlsx';
+      link.download = 'dap_an.xlsx';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

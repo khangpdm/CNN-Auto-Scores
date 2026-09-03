@@ -120,7 +120,8 @@ export default function StudentsTab({
 
     const downloadTemplate = () => {
       const link = document.createElement('a');
-      link.href = '../../public/ds_thi_sinh.xlsx';
+      // link.href = '../../public/ds_thi_sinh.xlsx';
+      link.href = '/ds_thi_sinh.xlsx';
       link.download = 'ds_thi_sinh.xlsx';
       document.body.appendChild(link);
       link.click();
