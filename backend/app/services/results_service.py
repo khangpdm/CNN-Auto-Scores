@@ -118,7 +118,7 @@ def manual_edit_result(
 
     # 3. XỬ LÝ ẢNH: QUÉT TOÀN BỘ TỌA ĐỘ HÌNH HỌC (Cả đáp án và SBD/Mã đề)
     if result.raw_image_path:
-        APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        APP_DIR = Path(__file__).resolve().parent.parent
         raw_relative_path = result.raw_image_path.replace("/static/", "storage/").lstrip("/")
         source_raw_path = os.path.normpath(os.path.join(APP_DIR, raw_relative_path))
 
@@ -255,18 +255,18 @@ def manual_edit_result(
                 processed_filename = f"processed_{unique_id}_{timestamp}.jpg"
 
                 processed_url = f"/storage/processed/{processed_filename}"
-                result.processed_image_path = processed_url
-
-                processed_relative_path = processed_url.replace("/storage/", "storage/").lstrip("/")
-                target_write_path = APP_DIR / processed_relative_path
+                target_write_path = APP_DIR / "storage" / "processed" / processed_filename
                 target_write_path.parent.mkdir(parents=True, exist_ok=True)
+
                 success = cv2.imwrite(str(target_write_path), new_processed_img)
 
-                if success:
-                    print(f"Đã ghi hình ảnh mới thành công: {target_write_path}")
-                    print(f"File size: {target_write_path.stat().st_size} bytes")
-                else:
-                    print(f"Ghi file thất bại: {target_write_path}")
+                if not success:
+                    raise RuntimeError(f"Không thể ghi ảnh đã xử lý: {target_write_path}")
+
+                result.processed_image_path = processed_url
+
+                print(f"Đã ghi hình ảnh mới: {target_write_path}")
+                print(f"File size: {target_write_path.stat().st_size} bytes")
 
         except Exception as draw_err:
             print(f"Lỗi kết xuất hình ảnh: {str(draw_err)}")

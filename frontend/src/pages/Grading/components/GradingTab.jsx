@@ -7,6 +7,8 @@ import {
   User, Hash, Award, Save, RotateCcw
 } from 'lucide-react';
 import {ConfirmDeleteModal, EditResultModal, ImageModal} from './GradingModals';
+import { getCurrentVersion, invalidateImageCache } from '@/lib/imageCache';
+import placeholderImage from '@/assets/placeholder-image.png';
 
 export default function GradingTab({
   sessionId,
@@ -184,12 +186,13 @@ export default function GradingTab({
   };
   const openImageModal = (imageUrl, title) => {
     if (!imageUrl) {
-      toast.error('Không có ảnh để hiển thị!');
+      setImageModal({
+        isOpen: true,
+        imageUrl: placeholderImage,
+        title: title || 'Không có ảnh bài làm',
+      });
       return;
     }
-
-    const separator = imageUrl.includes('?') ? '&' : '?';
-    const urlWithVersion = `${imageUrl}${separator}v=${imageVersion}`;
 
     setImageModal({
       isOpen: true,
@@ -735,26 +738,28 @@ export default function GradingTab({
                             <div>
                               <div className="flex items-center justify-between mb-1">
                                 <p className="text-xs text-gray-500">Ảnh bài làm</p>
-                                {/*{result.image_url && (*/}
-                                {/*  <button*/}
-                                {/*    onClick={() => openImageModal(result.image_url, 'Ảnh bài làm')}*/}
-                                {/*    className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"*/}
-                                {/*  >*/}
-                                {/*    <Maximize2 className="w-3 h-3" />*/}
-                                {/*    Phóng to*/}
-                                {/*  </button>*/}
-                                {/*)}*/}
+                                {result.image_url && (
+                                  <button
+                                    onClick={() => openImageModal(result.image_url, 'Ảnh bài làm')}
+                                    className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                                  >
+                                    <Maximize2 className="w-3 h-3" />
+                                    Phóng to
+                                  </button>
+                                )}
                               </div>
                               <div
                                 className="cursor-pointer rounded-lg border border-gray-200 overflow-hidden bg-white"
                                 onClick={() => openImageModal(result.image_url, 'Ảnh bài làm')}
                               >
                                 <img
-                                  src={result.image_url || '/placeholder-image.png'}
+                                  src={result.image_url || placeholderImage} // ✅ Dùng placeholderImage
                                   alt="Bài làm"
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
-                                    e.target.src = '/placeholder-image.png';
+                                    if (e.target.src !== placeholderImage) {
+                                      e.target.src = placeholderImage;
+                                    }
                                   }}
                                 />
                               </div>
