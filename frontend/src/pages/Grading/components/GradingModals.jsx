@@ -619,7 +619,7 @@ export function EditResultModal({
                     alt="Bài làm"
                     className="w-full h-full object-contain"
                     onError={(e) => {
-                      e.target.src = '/placeholder-image.png';
+                      e.target.src = placeholderImage;
                     }}
                   />
                 ) : (
@@ -834,7 +834,7 @@ export function ImageModal({ isOpen, imageUrl, title, onClose }){
               alt={title || 'Ảnh bài làm'}
               className="max-w-full max-h-[70vh] object-contain mx-auto"
               onError={(e) => {
-                e.target.src = '/placeholder-image.png';
+                e.target.src = placeholderImage;
               }}
             />
           </div>
