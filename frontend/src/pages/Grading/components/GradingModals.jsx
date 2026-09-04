@@ -613,20 +613,14 @@ export function EditResultModal({
               <div
                 className={`bg-gray-100 rounded-lg border border-gray-200 overflow-hidden transition-all h-[600px]`}
               >
-                {result.image_url ? (
                   <img
-                    src={imageUrl ? getFreshImageUrl(imageUrl) : placeholderImage}
+                    src={result.image_url ? getFreshImageUrl(result.image_url) : placeholderImage}
                     alt="Bài làm"
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       e.target.src = placeholderImage;
                     }}
                   />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <p>Không có ảnh bài làm</p>
-                  </div>
-                )}
               </div>
 
               {/*<div className="text-xs text-gray-400">*/}
