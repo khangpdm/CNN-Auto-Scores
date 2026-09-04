@@ -551,25 +551,12 @@ export function EditResultModal({
     const officialAnswers = getOfficialAnswers(formData.test_code);
     const totalQuestions = Object.keys(officialAnswers).length || Object.keys(formData.answers).length;
 
-    const getFreshImageUrl = (url) => {
-      if (!url) return '';
-
-      if (url.startsWith('http://') || url.startsWith('https://')) {
-        const separator = url.includes('?') ? '&' : '?';
-        return `${url}${separator}t=${new Date().getTime()}`;
-      }
-
-      const baseUrl = import.meta.env.VITE_API_URL || '';
-
-      let cleanUrl = url.startsWith('/') ? url : `/${url}`;
-
-      cleanUrl = cleanUrl.replace(/^\/static\//, '/storage/');
-
-      const formattedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-      const separator = cleanUrl.includes('?') ? '&' : '?';
-
-      return `${formattedBase}${cleanUrl}${separator}t=${new Date().getTime()}`;
-    };
+  const getFreshImageUrl = (url) => {
+    if (!url) return '';
+    const separator = url.includes('?') ? '&' : '?';
+    const version = getCurrentVersion();
+    return `${url}${separator}v=${version}&t=${new Date().getTime()}`;
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm overflow-y-auto">
