@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {Upload, X, Download, FileSpreadsheet, Loader2, Save, Eye} from "lucide-react";
 import {toast} from "sonner";
 import {getCurrentVersion, invalidateImageCache} from '@/lib/imageCache';
+import placeholderImage from '@/assets/placeholder-image.png';
 
 export function ImportStudentModal ({
     isOpen,
@@ -614,7 +615,7 @@ export function EditResultModal({
               >
                 {result.image_url ? (
                   <img
-                    src={getFreshImageUrl(result.image_url)}
+                    src={imageUrl ? getFreshImageUrl(imageUrl) : placeholderImage}
                     alt="Bài làm"
                     className="w-full h-full object-contain"
                     onError={(e) => {
@@ -829,7 +830,7 @@ export function ImageModal({ isOpen, imageUrl, title, onClose }){
           </div>
           <div className="p-4">
             <img
-              src={imageUrl ? getFreshImageUrl(imageUrl) : '/placeholder-image.png'}
+              src={imageUrl ? getFreshImageUrl(imageUrl) : placeholderImage}
               alt={title || 'Ảnh bài làm'}
               className="max-w-full max-h-[70vh] object-contain mx-auto"
               onError={(e) => {
