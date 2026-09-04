@@ -552,20 +552,23 @@ export function EditResultModal({
     const totalQuestions = Object.keys(officialAnswers).length || Object.keys(formData.answers).length;
 
     const getFreshImageUrl = (url) => {
-        if (!url) return '';
+      if (!url) return '';
 
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-            const separator = url.includes('?') ? '&' : '?';
-            return `${url}${separator}t=${new Date().getTime()}`;
-        }
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}t=${new Date().getTime()}`;
+      }
 
-        const baseUrl = import.meta.env.VITE_API_URL;
+      const baseUrl = import.meta.env.VITE_API_URL || '';
 
-        let cleanUrl = url.startsWith('/') ? url : `/${url}`;
-        cleanUrl = cleanUrl.replace(/^\/static\//, '/storage/');
+      let cleanUrl = url.startsWith('/') ? url : `/${url}`;
 
-        const separator = cleanUrl.includes('?') ? '&' : '?';
-        return `${baseUrl}${cleanUrl}${separator}t=${new Date().getTime()}`;
+      cleanUrl = cleanUrl.replace(/^\/static\//, '/storage/');
+
+      const formattedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      const separator = cleanUrl.includes('?') ? '&' : '?';
+
+      return `${formattedBase}${cleanUrl}${separator}t=${new Date().getTime()}`;
     };
 
   return (
