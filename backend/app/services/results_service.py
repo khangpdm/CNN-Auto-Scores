@@ -251,7 +251,7 @@ def manual_edit_result(
 
             if new_processed_img is not None:
                 timestamp = int(datetime.now().timestamp())
-                unique_id = uuid.uuid4().hex[:8]
+                unique_id = uuid.uuid4().hex
                 processed_filename = f"processed_{unique_id}_{timestamp}.jpg"
 
                 processed_url = f"/storage/processed/{processed_filename}"
