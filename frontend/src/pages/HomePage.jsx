@@ -451,7 +451,7 @@ export default function HomePage() {
               <div className="relative aspect-video bg-gray-900">
                 <iframe
                   className="absolute inset-0 w-full h-full"
-                  src="https://youtu.be/Lz0FP780E0U"
+                  src="https://www.youtube.com/embed/Lz0FP780E0U"
                   title="Video hướng dẫn 1"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
