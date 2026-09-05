@@ -73,17 +73,6 @@ export default function ExamGuide() {
               Tại đây
             </a>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <HelpCircle className="w-4 h-4 text-[#43a047]" />
-            <a
-              href=""
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#43a047] font-semibold hover:underline"
-            >
-              Xem thêm hướng dẫn tại đây
-            </a>
-          </div>
         </div>
       </div>
     </div>

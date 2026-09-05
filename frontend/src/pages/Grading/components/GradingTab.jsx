@@ -375,7 +375,6 @@ export default function GradingTab({
   const handleSaveEditDetail = async (resultId, data) => {
     try {
       await onUpdate(resultId, data);
-      toast.success('Cập nhật thành công!');
       closeEditDetailModal();
 
       invalidateImageCache();
